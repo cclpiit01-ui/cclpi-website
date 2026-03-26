@@ -24,7 +24,7 @@ import News from "@/pages/News";
 import SocialMedia from "@/pages/SocialMedia";
 import NewsDetail from "@/pages/NewsDetail";
 import AnnualReports from "@/pages/publication/AnnualReports";
-import Cof from "@/pages/publication/CertificateOfRegistration";
+import Cof from "@/pages/publication/Cof";
 import AnnualStatement from "@/pages/publication/AnnualStatement";
 import CorporateGovernance from "@/pages/publication/CorporateGovernance";
 import ArticleOfIncorporation from "@/pages/publication/ArticleOfIncorporation";

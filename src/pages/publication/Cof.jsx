@@ -13,7 +13,7 @@ const certificates = [
   { id: 4, title: "COR 2023", file: getDocUrl(DOC_FOLDERS.CERTIFICATES, "Certificate-of-Registration-2023.pdf") },
 ];
 
-export default function CertificateOfRegistration() {
+export default function Cof() {
   return (
     <>
       <PageHeader title="Certificate of Registration" subtitle="Official business documentation." />
