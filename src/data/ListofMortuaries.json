@@ -1,0 +1,26 @@
+[
+    {
+      "id": 1,
+      "name": "Cosmopolitan Memorial Chapel-CDO Branch",
+      "address": "Capistrano St, Cagayan De Oro City, 9000 Misamis Oriental",
+      "coordinates": [8.483971240483967, 124.644489409516114]
+    },
+    {
+      "id": 2,
+      "name": "Cosmopolotan Memorial Chapel-Davao Branch",
+      "address": "J. Camus Ext, corner J. Abad Santos St, Poblacion District, Davao City, 8000 Davao del Sur",
+      "coordinates": [7.073990990832278, 125.60611381521097]
+    },
+    {
+      "id": 3,
+      "name": "Cosmopolitan Memorial Chapel-ligan Branch",
+      "address": "Andres Bonifacio Ave, Iligan City, Lanao del Norte",
+      "coordinates": [8.231937266639592, 124.24126935767787]
+    },
+    {
+      "id": 4,
+      "name": "PCF FUNERAL SERVICES",
+      "address": "P LOWER BINOGSACAN GUINOBATAN ALBAY",
+      "coordinates": [13.208100536719487, 123.58090070295421]
+    }
+  ]

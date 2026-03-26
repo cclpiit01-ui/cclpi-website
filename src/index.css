@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+
+@theme {
+  /* Brand Colors */
+  --color-brand-primary: #013F99;
+  --color-brand-secondary: #4CB1E9;
+  --color-brand-accent: #F3CF47;
+  --color-brand-surface: #f6fbfe;
+
+  /* Brand Fonts */
+  --font-sans: "Poppins", ui-sans-serif, system-ui, sans-serif;
+  --font-heading: "Montserrat", ui-sans-serif, system-ui, sans-serif;
+}
+
+html,
+body {
+  overflow-x: hidden;
+  max-width: 100%;
+}
+ 

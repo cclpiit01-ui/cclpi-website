@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+
+  <url>
+    <loc>https://cclpi.com.ph/</loc>
+    <priority>1.0</priority>
+  </url>
+
+  <url>
+    <loc>https://cclpi.com.ph/products</loc>
+    <priority>0.9</priority>
+  </url>
+
+  <url>
+    <loc>https://cclpi.com.ph/products/mortuaries</loc>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://cclpi.com.ph/products/claims</loc>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://cclpi.com.ph/about/company-profile</loc>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://cclpi.com.ph/about/milestone</loc>
+    <priority>0.7</priority>
+  </url>
+
+  <url>
+    <loc>https://cclpi.com.ph/about/bod</loc>
+    <priority>0.7</priority>
+  </url>
+
+  <url>
+    <loc>https://cclpi.com.ph/about/stockholders</loc>
+    <priority>0.7</priority>
+  </url>
+
+  <url>
+    <loc>https://cclpi.com.ph/news</loc>
+    <priority>0.9</priority>
+  </url>
+
+  <url>
+    <loc>https://cclpi.com.ph/news/social-media</loc>
+    <priority>0.7</priority>
+  </url>
+
+  <url>
+    <loc>https://cclpi.com.ph/career</loc>
+    <priority>0.7</priority>
+  </url>
+
+  <url>
+    <loc>https://cclpi.com.ph/contact</loc>
+    <priority>0.7</priority>
+  </url>
+
+  <url>
+    <loc>https://cclpi.com.ph/faq</loc>
+    <priority>0.6</priority>
+  </url>
+
+  <url>
+    <loc>https://cclpi.com.ph/privacy-statement</loc>
+    <priority>0.5</priority>
+  </url>
+
+  <url>
+    <loc>https://cclpi.com.ph/publication/annual-report</loc>
+    <priority>0.6</priority>
+  </url>
+
+  <url>
+    <loc>https://cclpi.com.ph/publication/cof</loc>
+    <priority>0.6</priority>
+  </url>
+
+  <url>
+    <loc>https://cclpi.com.ph/publication/annual-statement</loc>
+    <priority>0.6</priority>
+  </url>
+
+  <url>
+    <loc>https://cclpi.com.ph/publication/corporate-governance</loc>
+    <priority>0.6</priority>
+  </url>
+
+  <url>
+    <loc>https://cclpi.com.ph/publication/article-of-incorporation</loc>
+    <priority>0.6</priority>
+  </url>
+
+  <url>
+    <loc>https://cclpi.com.ph/publication/minutes</loc>
+    <priority>0.6</priority>
+  </url>
+
+</urlset>
