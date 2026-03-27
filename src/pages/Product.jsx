@@ -9,7 +9,7 @@ import ProductFeatures from './product/ProductFeatures';
 import MemorialBenefits from './product/MemorialBenefits';
 import AdditionalBenefits from './product/AdditionalBenefits';
 import ServiceStats from './product/ServiceStats';
-import PaymentDirect from '/product/PaymentDirect';
+import PaymentDirect from "@/pages/product/PaymentDirect";
 
 const Product = () => {
   const [selectedPlan, setSelectedPlan] = useState(null);
