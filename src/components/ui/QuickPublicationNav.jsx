@@ -21,7 +21,7 @@ const QuickPublicationNav = () => {
 
   return (
     // Positioned on the LEFT to keep it separate from your Chat/Scroll buttons on the right
-    <div className="fixed bottom-8 left-8 z-50 flex flex-col items-start gap-4">
+    <div className="fixed bottom-8 left-8 z-50 flex flex-col items-start gap-4 pointer-events-none">
       
       {/* The Menu Panel */}
       <div className={`transition-all duration-500 origin-bottom-left ${
