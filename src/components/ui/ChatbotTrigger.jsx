@@ -3,12 +3,12 @@ import { MessageSquare, X, Send, Loader2 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import ReactMarkdown from 'react-markdown';
 
-const ChatbotTrigger = () => {
+const ChatbotTrigger = ({ moveDown }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [userInput, setUserInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [messages, setMessages] = useState([
-    { role: 'bot', text: "Hi! I'm your Angelica Assistant. Ask me about our 10-year plans!" }
+    { role: 'bot', text: "Hi! I'm your Angelica Assistant. Ask me about our 7 and 10-year plans!" }
   ]);
 
   const [sessionId] = useState(() => `sess-${Math.random().toString(36).substring(2, 10)}`);
@@ -59,16 +59,24 @@ const ChatbotTrigger = () => {
   };
 
   return (
-    // FIX: Removed `fixed bottom-28 right-8 z-[100]` — positioning is now
-    // fully controlled by Layout.jsx to avoid covering page content
-    <div className="flex flex-col items-end pointer-events-none">
+    // FIX: pointer-events-none on wrapper, only interactive elements get pointer-events-auto
+    // moveDown shifts the whole chatbot down when ScrollUp button appears
+    <div className={cn(
+      "flex flex-col items-end pointer-events-none transition-all duration-300",
+      moveDown ? "-translate-y-2" : "translate-y-18"
+    )}>
 
-      {/* CHAT WINDOW - pointer-events-auto only when open */}
+      {/* CHAT WINDOW */}
       <div className={cn(
-        "mb-4 w-[350px] max-w-[calc(100vw-2rem)] bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden transition-all duration-500 origin-bottom-right flex flex-col z-[200]",
-        isOpen ? "scale-100 opacity-100 translate-y-0 pointer-events-auto" : "scale-0 opacity-0 translate-y-10 pointer-events-none"
+        "mb-4 w-[400px] max-w-[calc(100vw-2rem)] bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden transition-all duration-500 origin-bottom-right flex flex-col z-[200]",
+        "h-[500px] max-h-[calc(100vh-120px)]",
+        isOpen
+          ? "scale-100 opacity-100 translate-y-0 pointer-events-auto"
+          : "scale-0 opacity-0 translate-y-10 pointer-events-none"
       )}>
-        <div className="bg-[#013F99] p-4 text-white">
+
+        {/* Chat Header */}
+        <div className="bg-[#013F99] p-4 text-white shrink-0">
           <div className="flex justify-between items-center">
             <div>
               <p className="text-[10px] font-black uppercase tracking-widest opacity-70">Angelica AI</p>
@@ -81,7 +89,7 @@ const ChatbotTrigger = () => {
         {/* Message Display Area */}
         <div
           ref={scrollRef}
-          className="h-[400px] bg-slate-50 p-4 overflow-y-auto flex flex-col gap-3 scroll-smooth"
+          className="flex-1 min-h-0 bg-slate-50 p-4 overflow-y-auto flex flex-col gap-3 scroll-smooth"
         >
           {messages.map((msg, i) => (
             <div key={i} className={cn(
@@ -118,7 +126,7 @@ const ChatbotTrigger = () => {
         </div>
 
         {/* Input Area */}
-        <div className="p-4 bg-white border-t border-slate-100">
+        <div className="p-4 bg-white border-t border-slate-100 shrink-0">
           <div className="flex gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200">
             <input
               type="text"
@@ -145,11 +153,12 @@ const ChatbotTrigger = () => {
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
           "p-4 rounded-full shadow-2xl border border-white/10 transition-all duration-300 hover:scale-110 active:scale-95 pointer-events-auto",
-          isOpen ? "bg-slate-800 text-white rotate-90" : "bg-[#013F99] text-white"
+          isOpen ? "bg-brand-secondary text-white rotate-90" : "bg-[#013F99] text-white"
         )}
       >
         {isOpen ? <X size={28} /> : <MessageSquare size={28} />}
       </button>
+
     </div>
   );
 };
