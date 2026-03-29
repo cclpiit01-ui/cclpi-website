@@ -1,55 +1,104 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { ApplicationModal } from "@/components/modals/ApplicationModal"; // Siguraduhin ang tamang path
 
-const CareerCard = ({ image, position, description, qualifications, type }) => {
+export default function CareerCard({ 
+  position, 
+  area_assign, 
+  description, 
+  job_brief, 
+  educational_requirements, 
+  competencies 
+}) {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Safety check para sa Array data
+  const renderList = (data) => {
+    if (!data) return null;
+    // Kung string lang ang dumating (e.g. Postgres format), ginagawa nating array
+    const list = Array.isArray(data) ? data : [data];
+    
+    return list.map((item, index) => (
+      <li key={index} className="flex items-start gap-2 text-sm text-slate-600 leading-relaxed">
+        <span className="text-brand-primary font-bold mt-1">•</span>
+        <span>{item}</span>
+      </li>
+    ));
+  };
+
   return (
-    <div className="group bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-500 border border-slate-100 flex flex-col h-full">
-      {/* Image Header */}
-      <div className="relative h-52 overflow-hidden">
-        <img 
-          src={image} 
-          alt={position} 
-          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-        />
-        <div className="absolute top-4 right-4">
-          <span className="bg-white/90 backdrop-blur-sm text-brand-primary text-[10px] font-bold px-3 py-1 rounded-full shadow-sm uppercase tracking-widest">
-            {type}
-          </span>
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="p-8 flex flex-col flex-1">
-        <h3 className="text-2xl font-black text-brand-primary uppercase mb-4 leading-tight">
-          {position}
-        </h3>
+    <>
+      <div className="bg-white rounded-3xl shadow-xl border border-slate-100 flex flex-col h-full overflow-hidden transition-transform hover:scale-[1.01]">
         
-        <div className="space-y-6 flex-1">
-          {/* Job Description */}
-          <div>
-            <h4 className="text-[10px] font-bold text-brand-accent uppercase tracking-[0.2em] mb-2">Job Description</h4>
-            <p className="text-slate-600 text-sm leading-relaxed">
-              {description}
-            </p>
+        {/* HEADER - Primary Background */}
+        <div className="bg-brand-primary p-8 text-white">
+          <div className="flex justify-between items-start gap-4 mb-4">
+            <h2 className="text-2xl font-black uppercase tracking-tight leading-tight flex-1">
+              {position}
+            </h2>
+            {area_assign && (
+              <span className="bg-brand-accent text-brand-primary text-[10px] font-bold px-3 py-1.5 rounded-full uppercase tracking-widest leading-tight max-w-[150px] text-center break-words shrink-0">
+                {area_assign}
+              </span>
+            )}
           </div>
+          <p className="text-blue-100/80 text-xs leading-relaxed line-clamp-3">
+            {description}
+          </p>
+        </div>
 
-          {/* Qualifications */}
-          <div>
-            <h4 className="text-[10px] font-bold text-brand-accent uppercase tracking-[0.2em] mb-2">Qualifications</h4>
-            <ul className="list-disc list-inside text-slate-600 text-sm space-y-1">
-              {qualifications.map((q, index) => (
-                <li key={index} className="leading-relaxed">{q}</li>
-              ))}
-            </ul>
+        {/* BODY */}
+        <div className="p-8 space-y-8 flex-grow">
+          
+          {/* Job Brief */}
+          {job_brief && (
+            <div className="relative">
+              <p className="text-slate-500 text-sm italic leading-relaxed border-l-4 border-brand-accent pl-4 py-1">
+                "{job_brief}"
+              </p>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 gap-8">
+            {/* Educational Requirements */}
+            <div>
+              <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-accent mb-4 bg-brand-accent/10 px-3 py-1 inline-block rounded">
+                Educational Requirements
+              </h4>
+              <ul className="space-y-3">
+                {renderList(educational_requirements)}
+              </ul>
+            </div>
+
+            {/* Competencies */}
+            <div>
+              <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-primary mb-4 bg-brand-primary/10 px-3 py-1 inline-block rounded">
+                Competencies
+              </h4>
+              <ul className="space-y-3">
+                {renderList(competencies)}
+              </ul>
+            </div>
           </div>
         </div>
 
-        {/* Apply Button */}
-        <button className="mt-8 w-full bg-brand-primary text-white font-bold py-4 rounded-xl hover:bg-brand-accent transition-colors duration-300 uppercase text-xs tracking-widest shadow-lg shadow-brand-primary/20">
-          Apply Now
-        </button>
+        {/* ACTION BUTTON */}
+        <div className="p-8 pt-0 mt-auto">
+          <button 
+            onClick={() => setIsModalOpen(true)}
+            className="w-full bg-brand-primary hover:bg-brand-accent hover:text-brand-primary text-white font-black py-4 rounded-2xl transition-all uppercase text-xs tracking-[3px] shadow-lg shadow-brand-primary/20 active:scale-95"
+          >
+            Apply Now
+          </button>
+        </div>
       </div>
-    </div>
-  );
-};
 
-export default CareerCard;
+      {/* MODAL COMPONENT */}
+      <ApplicationModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        jobTitle={position} 
+        area={area_assign}
+      />
+    </>
+  );
+}

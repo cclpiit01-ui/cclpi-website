@@ -2,14 +2,14 @@ import React from "react";
 
 // Components - UI/Global
 import PageHeader from "@/components/ui/PageHeader";
-import { Reveal } from "@/components/animation/Reveal";
+// import { Reveal } from "@/components/animation/Reveal";
 
 // Components - Section Specific
 import HeroSection from "./companyProfile/HeroSection";
 import OurStorySection from "./companyProfile/OurStorySection";
 import FoundingPartners from "./companyProfile/FoundingPartners";
 import GrowthAndReach from "./companyProfile/GrowthAndReach";
-import MissionVision from "./companyProfile/MissionVision";
+// import MissionVision from "./companyProfile/MissionVision";
 import ExploreButton from "./companyProfile/ExploreButton";
 
 const CompanyProfile = () => {
@@ -36,11 +36,11 @@ const CompanyProfile = () => {
         <GrowthAndReach />
       </section>
 
-      <section id="mission-vision" className="py-16">
+      {/* <section id="mission-vision" className="py-16">
         <Reveal direction="bottom">
           <MissionVision />
         </Reveal>
-      </section>
+      </section> */}
 
       <section id="cta">
         <ExploreButton />
