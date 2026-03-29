@@ -67,7 +67,7 @@ export const FeaturedHiringAds = () => {
 
             <div className="relative rounded-[2rem] overflow-hidden">
               <img 
-                src="/src/assets/candy.jpg" 
+                src="/src/assets/agent.jpg" 
                 alt="Hiring Sales Counselors"
                 className="w-full h-120 object-cover transition-transform duration-700 group-hover:scale-110 grayscale-[20%] group-hover:grayscale-0"
               />
