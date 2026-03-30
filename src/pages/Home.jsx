@@ -6,6 +6,7 @@ import HomeAboutPreview from "@/pages/homepage/HomeAboutPreview";
 import HomeNews from "@/components/ui/HomeNews";
 import SEO from "@/components/seo/SEO";
 import AngelicaPlansPremium from "@/pages/homepage/AngelicaPlansPremium";
+import HeroCarousel from "@/components/banner/HeroCarousel";
 
 const Home = () => {
   return (
@@ -17,8 +18,8 @@ const Home = () => {
         url="https://cclpi.com.ph/"
         image="https://cclpi.com.ph/cover.jpg"
       />
-
-      <Banner />
+    
+      <HeroCarousel />
       <Statistics />
       <HomeNews />
       <KeyBenefits />
