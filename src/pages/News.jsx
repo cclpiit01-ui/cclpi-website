@@ -11,7 +11,7 @@ export default function News() {
   const [filter, setFilter] = useState("All");
   const navigate = useNavigate(); // Hook para sa pag-lipat ng page
 
-  const categories = ["All", "Community", "Corporate", "Tips"];
+  const categories = ["All", "Company News", "Events & Activities", "Client Stories", "Tips"];
 
   useEffect(() => {
     async function fetchNews() {

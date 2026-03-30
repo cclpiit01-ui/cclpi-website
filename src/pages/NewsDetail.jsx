@@ -27,7 +27,7 @@ export default function NewsDetail() {
   return (
     <div className="bg-white min-h-screen pb-20">
       <div className="max-w-4xl mx-auto px-6 py-12">
-        <Link to="/news/news" className="text-blue-600 font-bold flex items-center gap-2 mb-8 hover:gap-3 transition-all">
+        <Link to="/news" className="text-blue-600 font-bold flex items-center gap-2 mb-8 hover:gap-3 transition-all">
           ← Back to News
         </Link>
         
