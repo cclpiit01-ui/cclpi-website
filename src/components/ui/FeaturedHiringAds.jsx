@@ -1,5 +1,6 @@
 import React from 'react';
 import { Target, Star, CheckSquare, Phone, Mail, PartyPopper, ChevronRight, Award, Zap } from 'lucide-react';
+import agentImg from "@/assets/agent.jpg";
 
 export const FeaturedHiringAds = () => {
   const steps = [
@@ -67,7 +68,7 @@ export const FeaturedHiringAds = () => {
 
             <div className="relative rounded-[2rem] overflow-hidden">
               <img 
-                src="/src/assets/agent.jpg" 
+                src={agentImg}
                 alt="Hiring Sales Counselors"
                 className="w-full h-120 object-cover transition-transform duration-700 group-hover:scale-110 grayscale-[20%] group-hover:grayscale-0"
               />
