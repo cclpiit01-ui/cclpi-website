@@ -6,8 +6,8 @@ export const ROLES = {
   };
   
   export const PERMISSIONS = {
-    SUPER_ADMIN: ['dashboard_access', 'poster_tool', 'claims', 'news'],
-    HRAD_ADMIN: ['dashboard_access', 'poster_tool'],
+    SUPER_ADMIN: ['dashboard_access', 'poster_tool', 'claims', 'news', 'hr_dashboard', 'user_management'],
+    HRAD_ADMIN: ['dashboard_access', 'poster_tool', 'hr_dashboard'],
     CIA_ADMIN: ['dashboard_access', 'news'],
     CLAIMS_ADMIN: ['dashboard_access', 'claims'],
   };

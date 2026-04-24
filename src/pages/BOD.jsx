@@ -84,7 +84,7 @@ const BOD = () => {
     {
       name: "Augustus J.V. Ferreria",
       role: "Independent Director",
-      company: "Corporate Leadership",
+      company: "",
       image: ferreriaImg
     },
     {
@@ -96,7 +96,7 @@ const BOD = () => {
     {
       name: "Atty. Daniel O. Evangelio, Jr.",
       role: "Corporate Board Secretary",
-      company: "Legal Counsel",
+      company: "",
       image: evangelioImg
     },
     {

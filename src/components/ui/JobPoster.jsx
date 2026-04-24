@@ -166,10 +166,10 @@ const JobPoster = forwardRef(({ data, staffPhoto }, ref) => {
         {/* FIXED CONTACT DETAILS */}
         <div className="text-right text-brand-primary">
           <h5 className="text-xl font-black leading-none">
-            Virgin Mary S. Roxas
+            Rona Mae E. Paculba
           </h5>
           <p className="text-xs font-bold uppercase opacity-70 mb-1">
-            Administrative Assistant
+            HR Supervisor
           </p>
           <h4 className="text-2xl font-black tracking-tight">
             +639 688 564 627

@@ -11,6 +11,8 @@ import 'swiper/css/effect-fade';
 // Import ang mga banner slides mo
 import BannerOne from './BannerOne';
 import BannerTwo from './BannerTwo';
+import BannerThree from './BannerThree';
+import BannerFour from './BannerFour';
 
 const HeroCarousel = () => {
   return (
@@ -34,6 +36,15 @@ const HeroCarousel = () => {
         <SwiperSlide>
           <BannerTwo />
         </SwiperSlide>
+
+        <SwiperSlide>
+          <BannerThree />
+        </SwiperSlide>
+
+        <SwiperSlide>
+          <BannerFour />
+        </SwiperSlide>
+
       </Swiper>
     </div>
   );

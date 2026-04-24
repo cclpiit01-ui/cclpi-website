@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 
 const plans = [
   {
-    name: "Angelica 5",
+    name: "Angelica",
     script: "Angelica",
     num: "5",
     years: "5 Years to Pay",

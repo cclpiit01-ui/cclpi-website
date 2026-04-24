@@ -4,10 +4,10 @@ import { Link } from "react-router-dom";
 
 const plans = [
   {
-    name: "Angelica 5",
+    name: "Angelica",
     years: "5 Years to Pay",
     description: "The classic Angelica Life Plan with faster completion and full memorial protection.",
-    badge: "Original",
+    badge: "Classic",
     badgeStyle: "outline",
   },
   {
@@ -56,7 +56,7 @@ const AngelicaPlansPremium = () => {
                 className={`absolute -top-4 left-1/2 -translate-x-1/2 text-[10px] font-bold px-6 py-1.5 rounded-full shadow-md uppercase tracking-widest z-20
                 ${plan.badgeStyle === 'filled' 
                   ? "bg-[#F3CF47] text-[#013F99]" 
-                  : "bg-white border-2 border-[#4CB1E9] text-[#4CB1E9]"}`}
+                  : "bg-white border-2 border-brand-accent text-brand-accent"}`}
               >
                 {plan.badge}
               </div>
