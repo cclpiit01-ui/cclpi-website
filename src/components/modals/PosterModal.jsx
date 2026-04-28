@@ -7,8 +7,8 @@ export default function PosterModal({ job, onClose }) {
   const posterRef = useRef(null);
   const [staffPhoto, setStaffPhoto] = useState(null);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
 
-  // Convert job data from Supabase format → PosterTool formData format
   const posterData = {
     position: job.position || "",
     area: job.area_assign || "",
@@ -22,15 +22,28 @@ export default function PosterModal({ job, onClose }) {
       : job.competencies || "",
   };
 
+  // ✅ FIXED: Same download fix as PosterTool
+  const exportPoster = async () => {
+    if (!posterRef.current) return null;
+    return await toPng(posterRef.current, {
+      cacheBust: true,
+      pixelRatio: 2,
+      width: 650,
+      height: 840,
+      style: {
+        transform: "none",
+        transformOrigin: "unset",
+        margin: "0",
+        padding: "0",
+      },
+    });
+  };
+
   const handleDownload = async () => {
-    if (!posterRef.current) return;
     setIsDownloading(true);
     try {
-      const dataUrl = await toPng(posterRef.current, {
-        cacheBust: true,
-        pixelRatio: 3,
-        backgroundColor: "#0b3d91",
-      });
+      const dataUrl = await exportPoster();
+      if (!dataUrl) return;
       const link = document.createElement("a");
       link.download = `CCLPI-${job.position}.png`;
       link.href = dataUrl;
@@ -43,21 +56,14 @@ export default function PosterModal({ job, onClose }) {
   };
 
   const handleShareFacebook = async () => {
-    if (!posterRef.current) return;
+    setIsSharing(true);
     try {
-      const dataUrl = await toPng(posterRef.current, {
-        cacheBust: true,
-        pixelRatio: 3,
-        backgroundColor: "#0b3d91",
-      });
-
-      // Download the image first (Facebook sharing requires manual upload)
+      const dataUrl = await exportPoster();
+      if (!dataUrl) return;
       const link = document.createElement("a");
       link.download = `CCLPI-${job.position}.png`;
       link.href = dataUrl;
       link.click();
-
-      // Then open Facebook share dialog
       setTimeout(() => {
         window.open(
           `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`,
@@ -68,90 +74,210 @@ export default function PosterModal({ job, onClose }) {
     } catch (err) {
       console.error("Share failed:", err);
     }
+    setIsSharing(false);
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div className="bg-[#0f172a] rounded-2xl shadow-2xl w-full max-w-5xl max-h-[95vh] overflow-hidden flex flex-col">
+    <div
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+      style={{
+        position: "fixed", inset: 0, zIndex: 50,
+        background: "rgba(0,0,0,0.4)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: 20,
+        fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif",
+      }}
+    >
+      <div style={{
+        background: "#fff",
+        borderRadius: 20,
+        width: "100%", maxWidth: 900,
+        maxHeight: "92vh",
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+        border: "0.5px solid rgba(0,0,0,0.08)",
+      }}>
 
         {/* HEADER */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800">
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: "18px 22px",
+          borderBottom: "0.5px solid #f2f2f7",
+        }}>
           <div>
-            <h2 className="text-lg font-black text-yellow-400 uppercase tracking-tight">
-              🎨 Recruitment Poster
+            <h2 style={{ fontSize: 16, fontWeight: 700, color: "#1c1c1e", margin: 0, letterSpacing: -0.3 }}>
+              Recruitment Poster
             </h2>
-            <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-0.5">
+            <p style={{ fontSize: 12, color: "#8e8e93", margin: "2px 0 0" }}>
               {job.position} — {job.area_assign}
             </p>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-500 hover:text-white hover:bg-slate-700 w-9 h-9 rounded-full flex items-center justify-center transition"
+            style={{
+              width: 32, height: 32, borderRadius: "50%",
+              border: "none", background: "#f2f2f7",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              cursor: "pointer", color: "#636366", flexShrink: 0,
+              transition: "background 0.15s",
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = "#e5e5ea"}
+            onMouseLeave={e => e.currentTarget.style.background = "#f2f2f7"}
           >
-            <X size={18} />
+            <X size={15} />
           </button>
         </div>
 
         {/* BODY */}
-        <div className="flex flex-1 overflow-hidden">
+        <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
 
-          {/* LEFT: Controls */}
-          <div className="w-56 flex flex-col gap-4 p-5 border-r border-slate-800 bg-slate-900">
-            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-              Staff Photo
-            </p>
-            <input
-              type="file"
-              id="poster-photo-upload"
-              className="hidden"
-              accept="image/*"
-              onChange={(e) =>
-                setStaffPhoto(URL.createObjectURL(e.target.files[0]))
-              }
-            />
-            <label
-              htmlFor="poster-photo-upload"
-              className="flex flex-col items-center justify-center gap-2 p-4 border-2 border-dashed border-slate-700 rounded-xl cursor-pointer hover:border-yellow-500 hover:bg-yellow-500/5 transition-all text-xs font-bold text-slate-400 text-center"
-            >
-              <ImageIcon size={20} className="text-slate-500" />
-              {staffPhoto ? "Change Photo" : "Upload Staff Photo"}
-            </label>
+          {/* LEFT: CONTROLS */}
+          <div style={{
+            width: 220, flexShrink: 0,
+            borderRight: "0.5px solid #f2f2f7",
+            display: "flex", flexDirection: "column",
+            padding: 18, gap: 16,
+            background: "#fafafa",
+          }}>
 
-            {staffPhoto && (
-              <img
-                src={staffPhoto}
-                alt="Preview"
-                className="w-full h-28 object-cover rounded-xl border border-slate-700"
+            {/* STAFF PHOTO SECTION */}
+            <div>
+              <p style={{ fontSize: 11, fontWeight: 600, color: "#8e8e93", textTransform: "uppercase", letterSpacing: "0.5px", margin: "0 0 10px" }}>
+                Staff Photo
+              </p>
+
+              <input
+                type="file"
+                id="poster-photo-upload"
+                style={{ display: "none" }}
+                accept="image/*"
+                onChange={(e) => setStaffPhoto(URL.createObjectURL(e.target.files[0]))}
               />
-            )}
 
-            <div className="mt-auto space-y-3">
+              {staffPhoto ? (
+                <div style={{ position: "relative", marginBottom: 10 }}>
+                  <img
+                    src={staffPhoto}
+                    alt="Preview"
+                    style={{ width: "100%", height: 120, objectFit: "cover", borderRadius: 12, border: "0.5px solid rgba(0,0,0,0.08)" }}
+                  />
+                  <label
+                    htmlFor="poster-photo-upload"
+                    style={{
+                      position: "absolute", bottom: 8, right: 8,
+                      background: "rgba(0,0,0,0.55)", color: "#fff",
+                      fontSize: 11, fontWeight: 600, padding: "4px 10px",
+                      borderRadius: 20, cursor: "pointer",
+                    }}
+                  >
+                    Change
+                  </label>
+                </div>
+              ) : (
+                <label
+                  htmlFor="poster-photo-upload"
+                  style={{
+                    display: "flex", flexDirection: "column",
+                    alignItems: "center", justifyContent: "center", gap: 6,
+                    padding: "20px 12px",
+                    border: "1.5px dashed rgba(0,0,0,0.12)",
+                    borderRadius: 12, cursor: "pointer",
+                    fontSize: 12, fontWeight: 500, color: "#8e8e93",
+                    textAlign: "center", transition: "all 0.15s",
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.borderColor = "#0b3d91"}
+                  onMouseLeave={e => e.currentTarget.style.borderColor = "rgba(0,0,0,0.12)"}
+                >
+                  <ImageIcon size={18} color="#8e8e93" />
+                  Upload Staff Photo
+                </label>
+              )}
+            </div>
+
+            {/* SPACER */}
+            <div style={{ flex: 1 }} />
+
+            {/* ACTION BUTTONS */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               <button
                 onClick={handleDownload}
                 disabled={isDownloading}
-                className="w-full bg-yellow-500 hover:bg-yellow-400 disabled:bg-yellow-800 text-slate-900 font-black py-3 rounded-xl flex items-center justify-center gap-2 text-xs transition active:scale-95"
+                style={{
+                  width: "100%", padding: "11px",
+                  background: isDownloading ? "#8e8e93" : "#0b3d91",
+                  color: "#fff", border: "none", borderRadius: 12,
+                  fontSize: 13, fontWeight: 600, cursor: isDownloading ? "not-allowed" : "pointer",
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
+                  transition: "background 0.15s",
+                }}
+                onMouseEnter={e => { if (!isDownloading) e.currentTarget.style.background = "#0a3480"; }}
+                onMouseLeave={e => { if (!isDownloading) e.currentTarget.style.background = "#0b3d91"; }}
               >
-                <Download size={16} />
-                {isDownloading ? "Saving..." : "Download"}
+                <Download size={15} />
+                {isDownloading ? "Saving…" : "Download"}
               </button>
 
               <button
                 onClick={handleShareFacebook}
-                className="w-full bg-[#1877F2] hover:bg-[#1464d4] text-white font-black py-3 rounded-xl flex items-center justify-center gap-2 text-xs transition active:scale-95"
+                disabled={isSharing}
+                style={{
+                  width: "100%", padding: "11px",
+                  background: isSharing ? "#8e8e93" : "#1877F2",
+                  color: "#fff", border: "none", borderRadius: 12,
+                  fontSize: 13, fontWeight: 600, cursor: isSharing ? "not-allowed" : "pointer",
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
+                  transition: "background 0.15s",
+                }}
+                onMouseEnter={e => { if (!isSharing) e.currentTarget.style.background = "#1464d4"; }}
+                onMouseLeave={e => { if (!isSharing) e.currentTarget.style.background = "#1877F2"; }}
               >
-                <Facebook size={16} />
-                Post to Facebook
+                <Facebook size={15} />
+                {isSharing ? "Opening…" : "Post to Facebook"}
               </button>
-              <p className="text-[9px] text-slate-600 text-center leading-tight">
+
+              <p style={{ fontSize: 10, color: "#8e8e93", textAlign: "center", margin: 0, lineHeight: 1.4 }}>
                 Image will download first, then Facebook will open for you to upload it.
               </p>
             </div>
           </div>
 
-          {/* RIGHT: Poster Preview */}
-          <div className="flex-1 bg-[#1e293b] flex items-center justify-center p-8 overflow-auto">
-            <div className="scale-[0.65] origin-center drop-shadow-[0_30px_30px_rgba(0,0,0,0.5)]">
-              <JobPoster ref={posterRef} data={posterData} staffPhoto={staffPhoto} />
+          {/* RIGHT: POSTER PREVIEW */}
+          <div style={{
+              flex: 1, background: "#f2f2f7",
+              display: "flex", flexDirection: "column",
+              alignItems: "center", justifyContent: "flex-start",
+              padding: "24px 32px",
+              overflow: "auto",
+            }}>
+              <span style={{
+                display: "inline-block", marginBottom: 18, flexShrink: 0,
+                background: "#fff", border: "0.5px solid rgba(0,0,0,0.08)",
+                borderRadius: 20, padding: "4px 14px",
+                fontSize: 11, fontWeight: 600, color: "#8e8e93",
+                textTransform: "uppercase", letterSpacing: "0.5px",
+              }}>
+                Live Preview
+              </span>
+
+              {/* ✅ Wrapper na nag-re-reserve ng exact scaled space */}
+              <div style={{
+                width: 650 * 0.58,
+                height: 840 * 0.58,
+                flexShrink: 0,
+                position: "relative",
+              }}>
+                <div style={{
+                  transform: "scale(0.58)",
+                  transformOrigin: "top left",
+                  position: "absolute",
+                  top: 0, left: 0,
+                  borderRadius: 12,
+                  overflow: "hidden",
+                  boxShadow: "0 20px 50px rgba(0,0,0,0.12)",
+                }}>
+                  <JobPoster ref={posterRef} data={posterData} staffPhoto={staffPhoto} />
+            </div>
             </div>
           </div>
         </div>

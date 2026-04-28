@@ -17,15 +17,12 @@ export default function HRDashboard() {
       .from("jobs")
       .select("*")
       .order("created_at", { ascending: false });
-
     if (error) console.error("Error fetching jobs:", error);
     else setJobs(data ?? []);
     setLoading(false);
   };
 
-  useEffect(() => {
-    fetchJobs();
-  }, []);
+  useEffect(() => { fetchJobs(); }, []);
 
   const filteredJobs = jobs.filter((job) => {
     const search = searchTerm.toLowerCase();
@@ -36,7 +33,7 @@ export default function HRDashboard() {
   });
 
   const totalPersonnel = jobs.length;
-  const pendingHirings = jobs.filter((j) => j.status === "hiring").length;
+  const activeHiring = jobs.filter((j) => j.status === "hiring").length;
 
   const handleDelete = async (id) => {
     if (!confirm("Are you sure you want to delete this job post?")) return;
@@ -45,14 +42,15 @@ export default function HRDashboard() {
   };
 
   return (
-    <div className="p-8 space-y-8 bg-brand-surface min-h-screen text-brand-primary">
-      {/* HEADER SECTION */}
-      <div className="flex flex-col md:flex-row justify-between items-end md:items-center gap-4">
+    <div className="min-h-screen bg-[#f2f2f7] p-7 font-[-apple-system,BlinkMacSystemFont,'SF_Pro_Display',sans-serif]">
+
+      {/* HEADER */}
+      <div className="flex items-center justify-between mb-7">
         <div>
-          <h1 className="text-3xl font-black uppercase tracking-tight text-brand-primary">
-            HRAD <span className="text-brand-secondary">Overview</span>
+          <h1 className="text-[22px] font-bold tracking-tight text-[#1c1c1e]">
+            HRAD <span className="text-[#0b3d91]">Overview</span>
           </h1>
-          <p className="text-brand-primary/60 text-sm font-medium">Manage and monitor recruitment pipeline</p>
+          <p className="text-[13px] text-[#8e8e93] mt-0.5">Recruitment pipeline</p>
         </div>
         <button
           onClick={() => setEditingJob({
@@ -62,106 +60,119 @@ export default function HRDashboard() {
             educational_requirements: [],
             competencies: [],
           })}
-          className="bg-brand-primary text-white px-8 py-3 rounded-2xl font-bold hover:bg-brand-primary/90 shadow-xl shadow-brand-primary/20 transition-all active:scale-95 flex items-center gap-2"
+          className="flex items-center gap-2 bg-[#0b3d91] text-white text-[14px] font-semibold px-5 py-2.5 rounded-xl hover:bg-[#0a3480] transition-colors active:scale-95"
         >
-          <span className="text-xl">+</span> Post New Job
+          <span className="text-lg leading-none">+</span> Post New Job
         </button>
       </div>
 
-      {/* STATS CARDS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-brand-primary/5 relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
-            <div className="w-16 h-16 bg-brand-primary rounded-full" />
-          </div>
-          <p className="text-xs font-bold text-brand-primary/40 uppercase tracking-widest">Total Vacancies</p>
-          <h2 className="text-5xl font-black text-brand-primary mt-1">{totalPersonnel}</h2>
+      {/* STAT CARDS */}
+      <div className="grid grid-cols-2 gap-3.5 mb-6">
+        <div className="bg-white rounded-[18px] border border-black/[0.07] px-5 py-5">
+          <p className="text-[11px] font-semibold text-[#8e8e93] uppercase tracking-[0.6px] mb-1.5">
+            Total Vacancies
+          </p>
+          <p className="text-[40px] font-bold leading-none tracking-[-2px] text-[#1c1c1e]">
+            {totalPersonnel}
+          </p>
+          <p className="text-[12px] text-[#8e8e93] mt-1.5">All job posts</p>
         </div>
-
-        <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-brand-secondary/10 relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
-            <div className="w-16 h-16 bg-brand-secondary rounded-full" />
-          </div>
-          <p className="text-xs font-bold text-brand-secondary uppercase tracking-widest">Active Hiring</p>
-          <h2 className="text-5xl font-black text-brand-secondary mt-1">{pendingHirings}</h2>
+        <div className="bg-white rounded-[18px] border border-black/[0.07] px-5 py-5">
+          <p className="text-[11px] font-semibold text-[#8e8e93] uppercase tracking-[0.6px] mb-1.5">
+            Active Hiring
+          </p>
+          <p className="text-[40px] font-bold leading-none tracking-[-2px] text-[#30d158]">
+            {activeHiring}
+          </p>
+          <p className="text-[12px] text-[#8e8e93] mt-1.5">Open positions</p>
         </div>
       </div>
 
-      {/* DATA TABLE CONTAINER */}
-      <div className="bg-white rounded-[2.5rem] shadow-sm border border-brand-primary/5 overflow-hidden">
-        {/* TABLE SEARCH BAR */}
-        <div className="p-6 border-b border-brand-primary/5 bg-white/50 backdrop-blur-sm">
-          <div className="relative max-w-md">
-            <span className="absolute inset-y-0 left-4 flex items-center text-brand-primary/30">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </span>
+      {/* TABLE CARD */}
+      <div className="bg-white rounded-[20px] border border-black/[0.07] overflow-hidden">
+
+        {/* SEARCH BAR */}
+        <div className="flex items-center gap-2.5 px-5 py-4 border-b border-[#f2f2f7]">
+          <div className="relative flex-1">
+            <svg
+              className="absolute left-3 top-1/2 -translate-y-1/2 w-[15px] h-[15px] text-[#8e8e93]"
+              viewBox="0 0 20 20" fill="none" stroke="currentColor"
+              strokeWidth="2" strokeLinecap="round"
+            >
+              <circle cx="9" cy="9" r="6" />
+              <line x1="13.5" y1="13.5" x2="18" y2="18" />
+            </svg>
             <input
               type="text"
-              placeholder="Search by position or area..."
-              className="w-full pl-12 pr-4 py-3.5 bg-brand-surface border border-brand-primary/5 rounded-2xl text-sm font-medium focus:ring-2 focus:ring-brand-secondary transition-all outline-none"
+              placeholder="Search position or area…"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-[#f2f2f7] text-[14px] text-[#1c1c1e] placeholder:text-[#8e8e93] rounded-[10px] pl-9 pr-4 py-2.5 outline-none border-none"
             />
           </div>
         </div>
 
-        {/* TABLE BODY */}
+        {/* TABLE */}
         {loading ? (
-          <div className="text-center py-20">
-            <div className="animate-spin inline-block w-8 h-8 border-4 border-brand-secondary border-t-transparent rounded-full mb-4"></div>
-            <p className="text-brand-primary/40 font-bold uppercase tracking-widest text-xs">Syncing Database...</p>
+          <div className="flex flex-col items-center justify-center py-16 gap-3">
+            <div className="w-7 h-7 border-2 border-[#0b3d91] border-t-transparent rounded-full animate-spin" />
+            <p className="text-[13px] text-[#8e8e93]">Loading jobs…</p>
+          </div>
+        ) : filteredJobs.length === 0 ? (
+          <div className="text-center py-16 text-[14px] text-[#8e8e93]">
+            No jobs found.
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full border-collapse">
               <thead>
-                <tr className="text-[11px] font-black text-brand-primary/40 uppercase tracking-[0.15em] bg-brand-surface/50">
-                  <th className="py-5 px-8">Position Title</th>
-                  <th className="py-5 px-8">Assigned Area</th>
-                  <th className="py-5 px-8 text-center">Status</th>
-                  <th className="py-5 px-8 text-right">Actions</th>
+                <tr className="bg-[#f9f9fb]">
+                  <th className="py-3 px-5 text-left text-[11px] font-semibold text-[#8e8e93] uppercase tracking-[0.5px]">Position</th>
+                  <th className="py-3 px-5 text-left text-[11px] font-semibold text-[#8e8e93] uppercase tracking-[0.5px]">Area</th>
+                  <th className="py-3 px-5 text-left text-[11px] font-semibold text-[#8e8e93] uppercase tracking-[0.5px]">Status</th>
+                  <th className="py-3 px-5 text-right text-[11px] font-semibold text-[#8e8e93] uppercase tracking-[0.5px]">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-brand-primary/5">
+              <tbody>
                 {filteredJobs.map((job) => (
-                  <tr key={job.id} className="group hover:bg-brand-surface transition-colors">
-                    <td className="py-5 px-8 font-bold text-brand-primary group-hover:text-brand-secondary transition-colors italic">
+                  <tr
+                    key={job.id}
+                    className="border-t border-[#f2f2f7] hover:bg-[#f9f9fb] transition-colors"
+                  >
+                    <td className="py-4 px-5 text-[14px] font-semibold text-[#1c1c1e]">
                       {job.position}
                     </td>
-                    <td className="py-5 px-8 text-brand-primary/60 text-sm font-medium">
+                    <td className="py-4 px-5 text-[13px] text-[#636366]">
                       {job.area_assign}
                     </td>
-                    <td className="py-5 px-8 text-center">
-                      <span className={`inline-block text-[10px] font-black px-4 py-1.5 rounded-full uppercase tracking-tight shadow-sm ${
+                    <td className="py-4 px-5">
+                      <span className={`inline-block px-3 py-1 rounded-full text-[11px] font-semibold tracking-[0.2px] ${
                         job.status === "hiring"
-                          ? "bg-brand-accent text-brand-primary"
-                          : "bg-brand-primary/10 text-brand-primary/40"
+                          ? "bg-[#d1f2e0] text-[#1a7a3c]"
+                          : "bg-[#f2f2f7] text-[#8e8e93]"
                       }`}>
-                        {job.status}
+                        {job.status === "hiring" ? "Hiring" : "Hired"}
                       </span>
                     </td>
-                    <td className="py-5 px-8 text-right">
-                      <div className="flex justify-end items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <td className="py-4 px-5">
+                      <div className="flex items-center justify-end gap-2">
                         <button
                           onClick={() => setPosterJob(job)}
-                          className="p-2 hover:bg-brand-accent/20 rounded-xl transition-colors text-brand-accent"
-                          title="Generate Poster"
+                          className="bg-[#eef2ff] text-[#0b3d91] text-[12px] font-semibold px-3 py-1.5 rounded-lg hover:bg-[#dce6ff] transition-colors"
                         >
-                          🎨
+                          Poster
                         </button>
                         <button
                           onClick={() => setEditingJob(job)}
-                          className="px-4 py-1.5 text-xs font-black bg-brand-secondary/10 text-brand-secondary rounded-lg hover:bg-brand-secondary hover:text-white transition-all"
+                          className="bg-[#f2f2f7] text-[#3a3a3c] text-[12px] font-semibold px-3 py-1.5 rounded-lg hover:bg-[#e5e5ea] transition-colors"
                         >
-                          EDIT
+                          Edit
                         </button>
                         <button
                           onClick={() => handleDelete(job.id)}
-                          className="px-4 py-1.5 text-xs font-black text-red-300 hover:text-red-500 transition-colors"
+                          className="text-[#ff3b30] text-[12px] font-semibold px-2 py-1.5 rounded-lg hover:bg-[#fff0ef] transition-colors"
                         >
-                          DEL
+                          ✕
                         </button>
                       </div>
                     </td>

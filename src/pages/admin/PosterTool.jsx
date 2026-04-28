@@ -3,11 +3,10 @@ import { toPng } from 'html-to-image';
 import { Download, Type, ListChecks, GraduationCap, Image as ImageIcon } from 'lucide-react';
 import JobPoster from '@/components/ui/JobPoster';
 
-
 const PosterTool = () => {
   const posterRef = useRef(null);
   const [staffPhoto, setStaffPhoto] = useState(null);
-  
+
   const [formData, setFormData] = useState({
     position: 'BILLING & COLLECTION ASSOCIATES',
     area: 'CAGAYAN DE ORO CITY',
@@ -19,117 +18,244 @@ const PosterTool = () => {
 
   const downloadPoster = async () => {
     if (!posterRef.current) return;
-  
     try {
       const dataUrl = await toPng(posterRef.current, {
         cacheBust: true,
-        pixelRatio: 3, // High quality
-        backgroundColor: '#0b3d91',
+        pixelRatio: 2,
+        width: 650,
+        height: 840,
+        style: {
+          transform: 'none',
+          transformOrigin: 'unset',
+          margin: '0',
+          padding: '0',
+        },
       });
-  
       const link = document.createElement('a');
       link.download = `CCLPI-${formData.position}.png`;
       link.href = dataUrl;
       link.click();
     } catch (err) {
       console.error('Download failed:', err);
-      alert("Error sa pag-download. Siguraduhing lahat ng images ay nasa assets folder.");
+      alert("Error sa pag-download.");
     }
   };
+
+  const Field = ({ label, children }) => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <label style={{ fontSize: 11, fontWeight: 600, color: '#8e8e93', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+        {label}
+      </label>
+      {children}
+    </div>
+  );
+
+  const inputStyle = {
+    width: '100%',
+    background: '#f2f2f7',
+    border: '0.5px solid rgba(0,0,0,0.08)',
+    borderRadius: 10,
+    padding: '10px 13px',
+    fontSize: 13,
+    color: '#1c1c1e',
+    outline: 'none',
+    fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
+  };
+
+  const textareaStyle = {
+    ...inputStyle,
+    resize: 'none',
+    lineHeight: 1.6,
+  };
+
+  const SectionLabel = ({ icon: Icon, text }) => (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
+      {Icon && <Icon size={12} color="#8e8e93" />}
+      <span style={{ fontSize: 11, fontWeight: 600, color: '#8e8e93', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+        {text}
+      </span>
+    </div>
+  );
+
   return (
-    <div className="flex h-screen bg-[#0f172a] font-sans overflow-hidden text-slate-200">
-      
-      {/* LEFT SIDE: THE EDITOR PANEL */}
-      <div className="w-[450px] flex flex-col border-r border-slate-800 bg-slate-900 shadow-2xl">
-        <div className="p-6 border-b border-slate-800 bg-slate-900/50">
-          <h2 className="text-xl font-black text-yellow-400 tracking-tighter italic uppercase">Poster Dashboard</h2>
-          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">CCLPI Recruitment Tool</p>
+    <div style={{
+      display: 'flex',
+      height: '100vh',
+      background: '#f2f2f7',
+      fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif',
+      overflow: 'hidden',
+    }}>
+
+      {/* LEFT PANEL */}
+      <div style={{
+        width: 340,
+        display: 'flex',
+        flexDirection: 'column',
+        background: '#fff',
+        borderRight: '0.5px solid rgba(0,0,0,0.08)',
+        flexShrink: 0,
+      }}>
+
+        {/* PANEL HEADER */}
+        <div style={{ padding: '22px 22px 18px', borderBottom: '0.5px solid #f2f2f7' }}>
+          <h2 style={{ fontSize: 17, fontWeight: 700, color: '#1c1c1e', margin: 0, letterSpacing: -0.4 }}>
+            Poster Editor
+          </h2>
+          <p style={{ fontSize: 12, color: '#8e8e93', margin: '2px 0 0' }}>
+            CCLPI Recruitment Tool
+          </p>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
-          {/* Main Info */}
-          <div className="space-y-4">
-            <h3 className="text-[10px] font-black text-blue-400 uppercase tracking-widest border-b border-blue-900/50 pb-1">Header Details</h3>
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-bold text-slate-500">JOB POSITION</label>
-              <input className="input-style uppercase" value={formData.position} onChange={(e) => setFormData({...formData, position: e.target.value.toUpperCase()})} />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-bold text-slate-500">AREA / LOCATION</label>
-              <input className="input-style uppercase" value={formData.area} onChange={(e) => setFormData({...formData, area: e.target.value.toUpperCase()})} />
+        {/* SCROLLABLE FIELDS */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '20px 18px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+          {/* SECTION: Header */}
+          <div style={{ background: '#f9f9fb', borderRadius: 14, padding: '16px 14px', border: '0.5px solid rgba(0,0,0,0.06)' }}>
+            <SectionLabel text="Header Details" />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <Field label="Job Position">
+                <input
+                  style={inputStyle}
+                  value={formData.position}
+                  onChange={(e) => setFormData({ ...formData, position: e.target.value.toUpperCase() })}
+                />
+              </Field>
+              <Field label="Area / Location">
+                <input
+                  style={inputStyle}
+                  value={formData.area}
+                  onChange={(e) => setFormData({ ...formData, area: e.target.value.toUpperCase() })}
+                />
+              </Field>
             </div>
           </div>
-          {/* Job Description - NEW FIELD */}
-            <div className="space-y-2">
-            <label className="text-[10px] font-black text-blue-400 uppercase tracking-widest flex items-center gap-2">
-                <Type size={12}/> Job Description (Paragraph)
-            </label>
-            <textarea 
-                className="textarea-style h-24 whitespace-pre-wrap" 
-                value={formData.description} 
-                onChange={(e) => setFormData({...formData, description: e.target.value})}
-                placeholder="Enter job responsibilities here..."
+
+          {/* SECTION: Content */}
+          <div style={{ background: '#f9f9fb', borderRadius: 14, padding: '16px 14px', border: '0.5px solid rgba(0,0,0,0.06)' }}>
+            <SectionLabel icon={Type} text="Job Content" />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <Field label="Job Description">
+                <textarea
+                  style={{ ...textareaStyle, height: 80 }}
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="Enter job responsibilities..."
+                />
+              </Field>
+              <Field label="Job Brief / Intro">
+                <textarea
+                  style={{ ...textareaStyle, height: 88 }}
+                  value={formData.brief}
+                  onChange={(e) => setFormData({ ...formData, brief: e.target.value })}
+                />
+              </Field>
+            </div>
+          </div>
+
+          {/* SECTION: Requirements */}
+          <div style={{ background: '#f9f9fb', borderRadius: 14, padding: '16px 14px', border: '0.5px solid rgba(0,0,0,0.06)' }}>
+            <SectionLabel icon={ListChecks} text="Requirements" />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <Field label="Competencies (1 per line)">
+                <textarea
+                  style={{ ...textareaStyle, height: 96 }}
+                  value={formData.competencies}
+                  onChange={(e) => setFormData({ ...formData, competencies: e.target.value })}
+                />
+              </Field>
+              <Field label="Educational Requirement">
+                <textarea
+                  style={{ ...textareaStyle, height: 72 }}
+                  value={formData.education}
+                  onChange={(e) => setFormData({ ...formData, education: e.target.value })}
+                />
+              </Field>
+            </div>
+          </div>
+
+          {/* PHOTO UPLOAD */}
+          <div>
+            <input
+              type="file"
+              id="p-upload"
+              style={{ display: 'none' }}
+              onChange={(e) => setStaffPhoto(URL.createObjectURL(e.target.files[0]))}
             />
-            </div>
-
-          {/* Job Brief */}
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-blue-400 uppercase tracking-widest flex items-center gap-2">
-              <Type size={12}/> Job Brief / Intro (Wrap Text)
-            </label>
-            <textarea 
-              className="textarea-style h-28 whitespace-pre-wrap" 
-              value={formData.brief} 
-              onChange={(e) => setFormData({...formData, brief: e.target.value})}
-            />
-          </div>
-
-          {/* Requirements */}
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-blue-400 uppercase tracking-widest flex items-center gap-2">
-                <ListChecks size={12}/> Competencies (1 per line)
-              </label>
-              <textarea className="textarea-style h-32 whitespace-pre-wrap" value={formData.competencies} onChange={(e) => setFormData({...formData, competencies: e.target.value})} />
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-blue-400 uppercase tracking-widest flex items-center gap-2">
-                <GraduationCap size={12}/> Educational Requirement
-              </label>
-              <textarea className="textarea-style h-20 whitespace-pre-wrap" value={formData.education} onChange={(e) => setFormData({...formData, education: e.target.value})} />
-            </div>
-          </div>
-
-          {/* Photo Upload */}
-          <div className="pt-4">
-            <input type="file" id="p-upload" className="hidden" onChange={(e) => setStaffPhoto(URL.createObjectURL(e.target.files[0]))} />
-            <label htmlFor="p-upload" className="flex items-center justify-center gap-3 p-4 border-2 border-dashed border-slate-700 rounded-xl cursor-pointer hover:border-yellow-500 hover:bg-yellow-500/5 transition-all text-sm font-bold">
-              <ImageIcon size={18} className="text-slate-500" />
-              UPLOAD STAFF PHOTO
+            <label
+              htmlFor="p-upload"
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                padding: '12px', borderRadius: 12,
+                border: '1.5px dashed rgba(0,0,0,0.12)',
+                cursor: 'pointer', fontSize: 13, fontWeight: 500,
+                color: staffPhoto ? '#0b3d91' : '#8e8e93',
+                background: staffPhoto ? '#eef2ff' : 'transparent',
+                transition: 'all 0.15s',
+              }}
+            >
+              <ImageIcon size={15} />
+              {staffPhoto ? 'Photo uploaded — tap to change' : 'Upload Staff Photo'}
             </label>
           </div>
         </div>
 
-        <div className="p-6 bg-slate-900 border-t border-slate-800">
-          <button onClick={downloadPoster} className="w-full bg-yellow-500 hover:bg-yellow-400 text-slate-900 font-black py-4 rounded-2xl flex items-center justify-center gap-3 shadow-xl transition-all active:scale-95">
-            <Download size={20} /> DOWNLOAD IMAGE
+        {/* DOWNLOAD BUTTON */}
+        <div style={{ padding: '14px 18px', borderTop: '0.5px solid #f2f2f7' }}>
+          <button
+            onClick={downloadPoster}
+            style={{
+              width: '100%', background: '#0b3d91', color: '#fff',
+              border: 'none', borderRadius: 13, padding: '13px',
+              fontSize: 14, fontWeight: 600, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              letterSpacing: -0.2, transition: 'background 0.15s',
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = '#0a3480'}
+            onMouseLeave={e => e.currentTarget.style.background = '#0b3d91'}
+          >
+            <Download size={16} /> Download Poster
           </button>
         </div>
       </div>
 
-      {/* RIGHT SIDE: THE LIVE PREVIEW */}
-      <div className="flex-1 bg-[#1e293b] flex items-center justify-center p-12 overflow-auto relative">
-        <div className="scale-75 lg:scale-[0.85] xl:scale-100 transition-all duration-500 origin-center drop-shadow-[0_50px_50px_rgba(0,0,0,0.5)]">
+      {/* RIGHT SIDE — LIVE PREVIEW */}
+      <div style={{
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 40,
+        overflow: 'auto',
+        background: '#f2f2f7',
+      }}>
+        {/* PREVIEW LABEL */}
+        <div style={{
+          marginBottom: 20,
+          display: 'flex', alignItems: 'center', gap: 8,
+        }}>
+          <span style={{
+            background: '#fff', border: '0.5px solid rgba(0,0,0,0.08)',
+            borderRadius: 20, padding: '4px 14px',
+            fontSize: 11, fontWeight: 600, color: '#8e8e93',
+            textTransform: 'uppercase', letterSpacing: '0.5px',
+          }}>
+            Live Preview
+          </span>
+        </div>
+
+        {/* POSTER PREVIEW */}
+        <div style={{
+          transform: 'scale(0.75)',
+          transformOrigin: 'top center',
+          display: 'inline-block',
+          borderRadius: 16,
+          overflow: 'hidden',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.12)',
+        }}>
           <JobPoster ref={posterRef} data={formData} staffPhoto={staffPhoto} />
         </div>
       </div>
-
-      <style dangerouslySetInnerHTML={{ __html: `
-        .input-style { width: 100%; background: #1e293b; border: 1px solid #334155; padding: 10px 14px; border-radius: 8px; font-size: 13px; outline: none; }
-        .textarea-style { width: 100%; background: #1e293b; border: 1px solid #334155; padding: 12px; border-radius: 10px; font-size: 13px; outline: none; resize: none; line-height: 1.6; }
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
-      `}} />
     </div>
   );
 };
