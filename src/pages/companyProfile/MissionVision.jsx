@@ -9,7 +9,7 @@ const MissionVision = () => (
           <Target size={80} className="absolute -right-4 -top-4 opacity-10" />
           <h3 className="text-brand-accent font-heading font-black text-3xl mb-6 uppercase ">Our Mission</h3>
           <p className="text-slate-200 leading-relaxed text-lg font-light">
-          To provide affordable, reliable, and compassionate life plan services that protect families from unexpected financial burden.
+         
           </p>
         </div>
       </Reveal>
@@ -18,7 +18,7 @@ const MissionVision = () => (
           <Eye size={80} className="absolute -right-4 -top-4 opacity-10" />
           <h3 className="text-brand-accent font-heading font-black text-3xl mb-6 uppercase ">Our Vision</h3>
           <p className="text-slate-200 leading-relaxed text-lg font-light">
-          To be at the forefront of delivering innovative, accessible, and highly trusted life plan services across the Philippines.
+          
           </p>
         </div>
       </Reveal>

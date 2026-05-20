@@ -69,19 +69,6 @@ export default function SocialMedia() {
 
           </div>
 
-          {/* Social Links Footer */}
-          <Reveal direction="bottom">
-            <div className="mt-24 pt-12 border-t border-slate-200 text-center">
-              <p className="text-brand-primary font-bold uppercase tracking-[0.3em] text-xs mb-8">
-                Explore our other channels
-              </p>
-              <div className="flex justify-center gap-12 text-slate-400 font-black text-sm tracking-widest">
-                <span className="hover:text-brand-accent cursor-pointer transition-all">INSTAGRAM</span>
-                <span className="hover:text-brand-accent cursor-pointer transition-all">YOUTUBE</span>
-                <span className="hover:text-brand-accent cursor-pointer transition-all">LINKEDIN</span>
-              </div>
-            </div>
-          </Reveal>
 
         </div>
       </section>
