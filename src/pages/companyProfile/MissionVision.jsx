@@ -9,7 +9,7 @@ const MissionVision = () => (
           <Target size={80} className="absolute -right-4 -top-4 opacity-10" />
           <h3 className="text-brand-accent font-heading font-black text-3xl mb-6 uppercase ">Our Mission</h3>
           <p className="text-slate-200 leading-relaxed text-lg font-light">
-         Mission here
+         Insert Mission here
           </p>
         </div>
       </Reveal>
@@ -18,7 +18,7 @@ const MissionVision = () => (
           <Eye size={80} className="absolute -right-4 -top-4 opacity-10" />
           <h3 className="text-brand-accent font-heading font-black text-3xl mb-6 uppercase ">Our Vision</h3>
           <p className="text-slate-200 leading-relaxed text-lg font-light">
-          Vision here
+          Insert Vision here
           </p>
         </div>
       </Reveal>
