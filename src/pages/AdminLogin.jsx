@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
-import CCLPILogo from "@/assets/cclpi-logo.png";
+import CCLPILogo from "@/assets/logo.png";
 
 export default function AdminLogin() {
   const [email, setEmail] = useState("");
@@ -18,7 +18,7 @@ export default function AdminLogin() {
     setIsLoading(true);
     try {
       await login(email, password);
-      navigate("/admin-dashboard");
+      navigate("/admin/dashboard");
     } catch (err) {
       setError("Invalid email or password. Please try again.");
     } finally {
@@ -26,93 +26,137 @@ export default function AdminLogin() {
     }
   };
 
+  const EyeIcon = () => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+      <circle cx="12" cy="12" r="3"/>
+    </svg>
+  );
+
+  const EyeOffIcon = () => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/>
+      <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/>
+      <line x1="1" y1="1" x2="23" y2="23"/>
+    </svg>
+  );
+
   return (
     <div style={{
       minHeight: "100vh",
-      background: "#f2f2f7",
+      background: "linear-gradient(135deg, #011f4d 0%, #013F99 60%, #4CB1E9 100%)",
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
-      fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif",
+      fontFamily: "'Poppins', sans-serif",
       padding: 20,
     }}>
-      <div style={{ width: "100%", maxWidth: 380 }}>
+      <div style={{ width: "100%", maxWidth: 420 }}>
 
-        {/* LOGO AREA */}
-        <div style={{ textAlign: "center", marginBottom: 28 }}>
-          <img
-            src={CCLPILogo}
-            alt="CCLPI Logo"
-            style={{
-              width: 200,
-              height: 80,
-              objectFit: "contain",
-              margin: "0 auto 14px",
-              display: "block",
-            }}
-          />
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: "#1c1c1e", margin: 0, letterSpacing: -0.5 }}>
+        {/* LOGO */}
+        <div style={{ textAlign: "center", marginBottom: 36 }}>
+          <div style={{
+            background: "rgba(255,255,255,0.08)",
+            backdropFilter: "blur(10px)",
+            borderRadius: 20,
+            padding: "24px",
+            display: "inline-block",
+            marginBottom: 20,
+            border: "1px solid rgba(255,255,255,0.15)",
+          }}>
+            <img
+              src={CCLPILogo}
+              alt="CCLPI Logo"
+              style={{ width: 160, objectFit: "contain", display: "block" }}
+            />
+          </div>
+          <h1 style={{
+            fontSize: 26,
+            fontWeight: 700,
+            color: "#fff",
+            margin: 0,
+            fontFamily: "'Montserrat', sans-serif",
+            letterSpacing: 0.5,
+          }}>
             Admin Portal
           </h1>
-          <p style={{ fontSize: 13, color: "#8e8e93", margin: "4px 0 0" }}>
-            Sign in to your account
+          <p style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", margin: "6px 0 0" }}>
+            Cosmopolitan CLIMBS Life Plan Inc.
           </p>
         </div>
 
         {/* CARD */}
         <div style={{
-          background: "#fff",
+          background: "rgba(255,255,255,0.05)",
+          backdropFilter: "blur(20px)",
           borderRadius: 20,
-          border: "0.5px solid rgba(0,0,0,0.08)",
-          padding: "28px 28px 24px",
+          border: "1px solid rgba(255,255,255,0.12)",
+          padding: "36px 32px",
         }}>
-          <form onSubmit={handleLogin} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
-            {/* ERROR */}
+          {/* ACCENT LINE */}
+          <div style={{
+            height: 3,
+            background: "linear-gradient(90deg, #013F99, #4CB1E9, #F3CF47)",
+            borderRadius: 2,
+            marginBottom: 28,
+          }} />
+
+          <form onSubmit={handleLogin} style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+
             {error && (
               <div style={{
-                background: "#fff0ef",
-                border: "0.5px solid rgba(255,59,48,0.2)",
-                borderRadius: 12, padding: "11px 14px",
+                background: "rgba(239,68,68,0.12)",
+                border: "1px solid rgba(239,68,68,0.3)",
+                borderRadius: 10, padding: "12px 16px",
+                color: "#fca5a5", fontSize: 13,
                 display: "flex", alignItems: "center", gap: 8,
               }}>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ff3b30" strokeWidth="2" strokeLinecap="round">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fca5a5" strokeWidth="2" strokeLinecap="round">
                   <circle cx="12" cy="12" r="10"/>
                   <line x1="12" y1="8" x2="12" y2="12"/>
                   <line x1="12" y1="16" x2="12.01" y2="16"/>
                 </svg>
-                <p style={{ fontSize: 13, color: "#ff3b30", margin: 0, fontWeight: 500 }}>
-                  {error}
-                </p>
+                {error}
               </div>
             )}
 
             {/* EMAIL */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <label style={{ fontSize: 12, fontWeight: 600, color: "#3a3a3c" }}>
-                Email address
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <label style={{
+                fontSize: 11, fontWeight: 600,
+                color: "#4CB1E9",
+                textTransform: "uppercase", letterSpacing: 1.2,
+              }}>
+                Email Address
               </label>
               <input
                 type="email"
-                placeholder="admin@cclpi.com"
+                placeholder="admin@cclpi.com.ph"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 style={{
-                  width: "100%", boxSizing: "border-box",
-                  background: "#f2f2f7", border: "0.5px solid transparent",
-                  borderRadius: 11, padding: "12px 14px",
-                  fontSize: 14, color: "#1c1c1e",
-                  outline: "none", transition: "border 0.15s",
+                  background: "rgba(0,0,0,0.25)",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  borderRadius: 10, padding: "13px 16px",
+                  fontSize: 14, color: "#fff",
+                  outline: "none", width: "100%", boxSizing: "border-box",
+                  fontFamily: "'Poppins', sans-serif",
+                  transition: "border 0.2s",
                 }}
-                onFocus={e => e.target.style.border = "0.5px solid #0b3d91"}
-                onBlur={e => e.target.style.border = "0.5px solid transparent"}
+                onFocus={e => e.target.style.border = "1px solid #4CB1E9"}
+                onBlur={e => e.target.style.border = "1px solid rgba(255,255,255,0.1)"}
               />
             </div>
 
             {/* PASSWORD */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <label style={{ fontSize: 12, fontWeight: 600, color: "#3a3a3c" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <label style={{
+                fontSize: 11, fontWeight: 600,
+                color: "#4CB1E9",
+                textTransform: "uppercase", letterSpacing: 1.2,
+              }}>
                 Password
               </label>
               <div style={{ position: "relative" }}>
@@ -123,38 +167,31 @@ export default function AdminLogin() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   style={{
-                    width: "100%", boxSizing: "border-box",
-                    background: "#f2f2f7", border: "0.5px solid transparent",
-                    borderRadius: 11, padding: "12px 44px 12px 14px",
-                    fontSize: 14, color: "#1c1c1e",
-                    outline: "none", transition: "border 0.15s",
+                    background: "rgba(0,0,0,0.25)",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    borderRadius: 10, padding: "13px 48px 13px 16px",
+                    fontSize: 14, color: "#fff",
+                    outline: "none", width: "100%", boxSizing: "border-box",
+                    fontFamily: "'Poppins', sans-serif",
+                    transition: "border 0.2s",
                   }}
-                  onFocus={e => e.target.style.border = "0.5px solid #0b3d91"}
-                  onBlur={e => e.target.style.border = "0.5px solid transparent"}
+                  onFocus={e => e.target.style.border = "1px solid #4CB1E9"}
+                  onBlur={e => e.target.style.border = "1px solid rgba(255,255,255,0.1)"}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   style={{
-                    position: "absolute", right: 13, top: "50%",
+                    position: "absolute", right: 14, top: "50%",
                     transform: "translateY(-50%)",
                     background: "none", border: "none",
-                    cursor: "pointer", color: "#8e8e93", padding: 2,
+                    cursor: "pointer",
+                    color: "#000",
                     display: "flex", alignItems: "center",
+                    padding: 0,
                   }}
                 >
-                  {showPassword ? (
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                      <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/>
-                      <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/>
-                      <line x1="1" y1="1" x2="23" y2="23"/>
-                    </svg>
-                  ) : (
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                      <circle cx="12" cy="12" r="3"/>
-                    </svg>
-                  )}
+                  {showPassword ? <EyeOffIcon /> : <EyeIcon />}
                 </button>
               </div>
             </div>
@@ -164,40 +201,44 @@ export default function AdminLogin() {
               type="submit"
               disabled={isLoading}
               style={{
-                width: "100%", padding: "13px",
-                background: isLoading ? "#8e8e93" : "#0b3d91",
-                color: "#fff", border: "none", borderRadius: 12,
+                width: "100%", padding: "14px",
+                background: isLoading
+                  ? "rgba(255,255,255,0.1)"
+                  : "linear-gradient(90deg, #013F99, #4CB1E9)",
+                color: "#fff", border: "none", borderRadius: 10,
                 fontSize: 14, fontWeight: 600,
                 cursor: isLoading ? "not-allowed" : "pointer",
-                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                transition: "background 0.15s",
                 marginTop: 4,
+                fontFamily: "'Poppins', sans-serif",
+                letterSpacing: 0.5,
+                transition: "opacity 0.2s",
+                display: "flex", alignItems: "center",
+                justifyContent: "center", gap: 8,
               }}
-              onMouseEnter={e => { if (!isLoading) e.currentTarget.style.background = "#0a3480"; }}
-              onMouseLeave={e => { if (!isLoading) e.currentTarget.style.background = "#0b3d91"; }}
             >
               {isLoading ? (
                 <>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" style={{ animation: "spin 0.8s linear infinite" }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"
+                    style={{ animation: "spin 0.8s linear infinite" }}>
                     <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
                   </svg>
                   Signing in…
                 </>
-              ) : (
-                "Sign in"
-              )}
+              ) : "Sign In"}
             </button>
 
           </form>
         </div>
 
-        {/* FOOTER */}
-        <p style={{ textAlign: "center", fontSize: 12, color: "#8e8e93", margin: "20px 0 0" }}>
-          Cosmopolitan CLIMBS Life Plan Inc. © 2026
+        <p style={{ textAlign: "center", fontSize: 11, color: "rgba(255,255,255,0.3)", margin: "20px 0 0" }}>
+          © 2026 Cosmopolitan CLIMBS Life Plan Inc. All rights reserved.
         </p>
-
       </div>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        input::placeholder { color: rgba(255,255,255,0.25); }
+      `}</style>
     </div>
   );
 }
