@@ -1,11 +1,10 @@
 import { Routes, Route } from "react-router-dom";
 
-// Layout and Security Imports
+// Layout and Security
 import Layout from "@/components/layout/Layout";
 import { AuthProvider } from "@/context/AuthContext";
-import { RoleGuard } from "@/components/RoleGuard";
 
-// Page Imports
+// Public Pages
 import Home from "@/pages/Home";
 import PrivacyStatement from "@/pages/PrivacyStatement";
 import FAQ from "@/pages/FAQ";
@@ -29,22 +28,25 @@ import AnnualStatement from "@/pages/publication/AnnualStatement";
 import CorporateGovernance from "@/pages/publication/CorporateGovernance";
 import ArticleOfIncorporation from "@/pages/publication/ArticleOfIncorporation";
 import Minutes from "@/pages/publication/Minutes";
-
-// Admin Imports
+import AdminLogin from "@/pages/AdminLogin";
 import AdminDashboard from "@/pages/AdminDashboard";
-import AdminLogin from "@/pages/AdminLogin"; 
+import HRManagement from "@/pages/admin/HRManagement";
+import DashboardHome from "@/pages/admin/DashboardHome";
 
 export default function App() {
   return (
     <AuthProvider>
-      <div className="bg-white min-h-screen over">
+      <div className="bg-white min-h-screen">
         <Routes>
-          {/* 1. Admin & Authentication Routes */}
+          {/* Admin Routes */}
           <Route path="/admin/login" element={<AdminLogin />} />
-          
-          <Route element={<RoleGuard requiredPermission="dashboard_access" />}>
-            <Route path="/admin-dashboard" element={<AdminDashboard />} />
+          <Route path="/admin" element={<AdminDashboard />}>
+            <Route path="dashboard" element={<DashboardHome />} />
+            <Route path="users" element={<div style={{color:"#013F99"}}>User Management — Coming Soon</div>} />
+            <Route path="hr" element={<HRManagement />} />
+            
           </Route>
+          
 
           <Route path="/unauthorized" element={
             <div className="flex h-screen items-center justify-center">
@@ -52,36 +54,27 @@ export default function App() {
             </div>
           } />
 
-          {/* 2. Public Website Routes wrapped in Layout */}
+          {/* Public Routes */}
           <Route path="*" element={
             <Layout>
               <Routes>
-                {/* General Pages */}
-                <Route path="/" element={<Home />}/>
-                <Route path="/privacy-statement" element={<PrivacyStatement />}/>
-                <Route path="/faq" element={<FAQ />}/>
-                <Route path="/career" element={<Career />}/>
-                <Route path="/contact" element={<Contact />}/>
-
-                {/* About Section */}
-                <Route path="/about/company-profile" element={<CompanyProfile/>}/>
-                <Route path="/about/milestone" element={<Milestone/>}/>
-                <Route path="/about/bod" element={<BOD/>}/>
-                <Route path="/about/top-management" element={<TopManagement/>}/>
-                <Route path="/about/stockholders" element={<Stockholders/>}/>
-
-                {/* Products Section - Cleaned URLs */}
+                <Route path="/" element={<Home />} />
+                <Route path="/privacy-statement" element={<PrivacyStatement />} />
+                <Route path="/faq" element={<FAQ />} />
+                <Route path="/career" element={<Career />} />
+                <Route path="/contact" element={<Contact />} />
+                <Route path="/about/company-profile" element={<CompanyProfile />} />
+                <Route path="/about/milestone" element={<Milestone />} />
+                <Route path="/about/bod" element={<BOD />} />
+                <Route path="/about/top-management" element={<TopManagement />} />
+                <Route path="/about/stockholders" element={<Stockholders />} />
                 <Route path="/products" element={<Product />} />
                 <Route path="/products/payment" element={<Payment />} />
                 <Route path="/products/mortuaries" element={<Mortuaries />} />
                 <Route path="/products/claims" element={<Claims />} />
-
-                {/* News Section - Cleaned URLs */}
                 <Route path="/news" element={<News />} />
                 <Route path="/news/:id" element={<NewsDetail />} />
                 <Route path="/news/social-media" element={<SocialMedia />} />
-
-                {/* Publication Section - Added missing slashes */}
                 <Route path="/publication/annual-report" element={<AnnualReports />} />
                 <Route path="/publication/cof" element={<Cof />} />
                 <Route path="/publication/annual-statement" element={<AnnualStatement />} />
