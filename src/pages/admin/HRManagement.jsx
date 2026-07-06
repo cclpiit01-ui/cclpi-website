@@ -325,9 +325,9 @@ export default function HRManagement() {
             {/* PROFILE HEADER */}
             <div style={{ display: "flex", alignItems: "center", gap: 20, marginBottom: 24, padding: "16px 20px", background: "#f6fbfe", borderRadius: 14, border: "1px solid rgba(1,63,153,0.06)" }}>
               {viewData.picture ? (
-                <img src={viewData.picture} alt="employee" style={{ width: 80, height: 80, objectFit: "cover", borderRadius: 12, border: "3px solid rgba(1,63,153,0.15)", flexShrink: 0 }} />
+                <img src={viewData.picture} alt="employee" style={{ width: 100, height: 120, objectFit: "cover", objectPosition: "center top", borderRadius: 10, border: "3px solid rgba(1,63,153,0.15)", flexShrink: 0 }} />
               ) : (
-                <div style={{ width: 80, height: 80, borderRadius: 12, background: "linear-gradient(135deg, #013F99, #4CB1E9)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <div style={{ width: 100, height: 120, borderRadius: 10, background: "linear-gradient(135deg, #013F99, #4CB1E9)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                   <span style={{ fontSize: 28, fontWeight: 700, color: "#fff" }}>{viewData.first_name?.[0]?.toUpperCase() || "?"}</span>
                 </div>
               )}
