@@ -9,6 +9,7 @@ export default function HRManagement() {
   const [birthMonth, setBirthMonth] = useState("All");
   const [currentPage, setCurrentPage] = useState(1);
   const [sortOrder, setSortOrder] = useState("asc");
+  const [departmentFilter, setDepartmentFilter] = useState("All");
   const itemsPerPage = 10;
   const [editModal, setEditModal] = useState(false);
   const [editData, setEditData] = useState(null);
@@ -83,12 +84,14 @@ export default function HRManagement() {
   const filtered = employees.filter((emp) => {
     const matchSearch = emp.full_name?.toLowerCase().includes(search.toLowerCase()) || emp.id?.toLowerCase().includes(search.toLowerCase()) || emp.job_position?.toLowerCase().includes(search.toLowerCase());
     const matchStatus = statusFilter === "All" || emp.status === statusFilter;
+    const matchDepartment = departmentFilter === "All" || emp.department === departmentFilter;
     const matchBirthMonth = birthMonth === "All" || (emp.dob && new Date(emp.dob).getMonth() + 1 === parseInt(birthMonth));
-    return matchSearch && matchStatus && matchBirthMonth;
+    return matchSearch && matchStatus && matchBirthMonth && matchDepartment;
   });
 
   const totalPages = Math.ceil(filtered.length / itemsPerPage);
   const paginated = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const departments = ["All", ...new Set(employees.map(e => e.department).filter(Boolean).sort())];
   const total = employees.length;
   const active = employees.filter((e) => e.status === "Active").length;
   const inactive = employees.filter((e) => e.status === "In-active").length;
@@ -137,6 +140,26 @@ export default function HRManagement() {
               <option key={m} value={i + 1}>{m}</option>
             ))}
           </select>
+          {/* DEPARTMENT FILTER */}
+<select
+  value={departmentFilter}
+  onChange={(e) => { setDepartmentFilter(e.target.value); setCurrentPage(1); }}
+  style={{
+    padding: "9px 18px",
+    borderRadius: 10,
+    border: "1px solid rgba(1,63,153,0.12)",
+    background: departmentFilter !== "All" ? "#013F99" : "#fff",
+    color: departmentFilter !== "All" ? "#fff" : "#64748b",
+    fontSize: 12, fontWeight: 600,
+    cursor: "pointer",
+    fontFamily: "'Poppins', sans-serif",
+    outline: "none",
+  }}
+>
+  {departments.map((d) => (
+    <option key={d} value={d}>{d === "All" ? "All Departments" : d}</option>
+  ))}
+</select>
           {["All", "Active", "In-active"].map((s) => (
             <button key={s} onClick={() => { setStatusFilter(s); setCurrentPage(1); }}
               style={{ padding: "9px 18px", borderRadius: 10, border: "1px solid rgba(1,63,153,0.12)", background: statusFilter === s ? "#013F99" : "#fff", color: statusFilter === s ? "#fff" : "#64748b", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "'Poppins', sans-serif" }}>
