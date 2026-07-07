@@ -133,6 +133,35 @@ export default function HRManagement() {
             <input placeholder="Search by name, ID, or position..." value={search} onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
               style={{ width: "100%", boxSizing: "border-box", padding: "10px 16px 10px 36px", border: "1px solid rgba(1,63,153,0.12)", borderRadius: 10, fontSize: 13, color: "#0b1a3b", outline: "none", fontFamily: "'Poppins', sans-serif" }} />
           </div>
+          {/* All */}
+            {["All", "Active", "In-active"].map((s) => (
+            <button key={s} onClick={() => { setStatusFilter(s); setCurrentPage(1); }}
+              style={{ padding: "9px 18px", borderRadius: 10, border: "1px solid rgba(1,63,153,0.12)", background: statusFilter === s ? "#013F99" : "#fff", color: statusFilter === s ? "#fff" : "#64748b", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "'Poppins', sans-serif" }}>
+              {s}
+            </button>
+          ))}
+
+          {/* DEPARTMENT FILTER */}
+          <select
+            value={departmentFilter}
+            onChange={(e) => { setDepartmentFilter(e.target.value); setCurrentPage(1); }}
+            style={{
+              padding: "9px 18px",
+              borderRadius: 10,
+              border: "1px solid rgba(1,63,153,0.12)",
+              background: departmentFilter !== "All" ? "#013F99" : "#fff",
+              color: departmentFilter !== "All" ? "#fff" : "#64748b",
+              fontSize: 12, fontWeight: 600,
+              cursor: "pointer",
+              fontFamily: "'Poppins', sans-serif",
+              outline: "none",
+            }}
+          >
+            {departments.map((d) => (
+              <option key={d} value={d}>{d === "All" ? "All Departments" : d}</option>
+            ))}
+          </select>
+           {/* Birthday*/}
           <select value={birthMonth} onChange={(e) => { setBirthMonth(e.target.value); setCurrentPage(1); }}
             style={{ padding: "9px 18px", borderRadius: 10, border: "1px solid rgba(1,63,153,0.12)", background: birthMonth !== "All" ? "#013F99" : "#fff", color: birthMonth !== "All" ? "#fff" : "#64748b", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "'Poppins', sans-serif", outline: "none" }}>
             <option value="All">All Birthdays</option>
@@ -140,32 +169,8 @@ export default function HRManagement() {
               <option key={m} value={i + 1}>{m}</option>
             ))}
           </select>
-          {/* DEPARTMENT FILTER */}
-<select
-  value={departmentFilter}
-  onChange={(e) => { setDepartmentFilter(e.target.value); setCurrentPage(1); }}
-  style={{
-    padding: "9px 18px",
-    borderRadius: 10,
-    border: "1px solid rgba(1,63,153,0.12)",
-    background: departmentFilter !== "All" ? "#013F99" : "#fff",
-    color: departmentFilter !== "All" ? "#fff" : "#64748b",
-    fontSize: 12, fontWeight: 600,
-    cursor: "pointer",
-    fontFamily: "'Poppins', sans-serif",
-    outline: "none",
-  }}
->
-  {departments.map((d) => (
-    <option key={d} value={d}>{d === "All" ? "All Departments" : d}</option>
-  ))}
-</select>
-          {["All", "Active", "In-active"].map((s) => (
-            <button key={s} onClick={() => { setStatusFilter(s); setCurrentPage(1); }}
-              style={{ padding: "9px 18px", borderRadius: 10, border: "1px solid rgba(1,63,153,0.12)", background: statusFilter === s ? "#013F99" : "#fff", color: statusFilter === s ? "#fff" : "#64748b", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "'Poppins', sans-serif" }}>
-              {s}
-            </button>
-          ))}
+
+
           <button onClick={() => setSortOrder(prev => prev === "asc" ? "desc" : "asc")}
             style={{ padding: "9px 18px", borderRadius: 10, border: "1px solid rgba(1,63,153,0.12)", background: "#fff", color: "#013F99", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "'Poppins', sans-serif", display: "flex", alignItems: "center", gap: 6 }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">

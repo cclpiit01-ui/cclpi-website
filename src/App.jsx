@@ -32,6 +32,8 @@ import AdminLogin from "@/pages/AdminLogin";
 import AdminDashboard from "@/pages/AdminDashboard";
 import HRManagement from "@/pages/admin/HRManagement";
 import DashboardHome from "@/pages/admin/DashboardHome";
+import RoleManagement from "@/pages/admin/roleManagement";
+import UserManagement from "@/pages/admin/Usermanagement";
 
 export default function App() {
   return (
@@ -42,9 +44,9 @@ export default function App() {
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin" element={<AdminDashboard />}>
             <Route path="dashboard" element={<DashboardHome />} />
-            <Route path="users" element={<div style={{color:"#013F99"}}>User Management — Coming Soon</div>} />
+            <Route path="users" element={<UserManagement/>} />
             <Route path="hr" element={<HRManagement />} />
-            
+            <Route path="roles" element={<RoleManagement />} />
           </Route>
           
 

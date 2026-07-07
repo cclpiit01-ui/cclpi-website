@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
+import { supabaseEmployees } from "@/lib/supabaseEmployees";
 
 const AuthContext = createContext();
 
@@ -7,51 +7,74 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Fetch admin profile (username + role) from admin_profiles table
   const fetchProfile = async (authUser) => {
     if (!authUser) { setUser(null); return; }
 
-    const { data, error } = await supabase
-      .from("admin_profiles")
-      .select("username, role")
+    const { data, error } = await supabaseEmployees
+      .from("profiles_with_email")
+      .select("username, is_active, role_id, roles(name, role_pages(page_id, pages(name, path, icon, sort_order)))")
       .eq("id", authUser.id)
       .single();
 
-    if (error || !data) {
-      await supabase.auth.signOut();
+    if (error || !data || !data.is_active) {
+      await supabaseEmployees.auth.signOut();
       setUser(null);
     } else {
+      // Extract allowed pages
+      const allowedPages = data.roles?.role_pages
+        ?.map(rp => rp.pages)
+        .filter(Boolean)
+        .sort((a, b) => a.sort_order - b.sort_order) || [];
+
       setUser({
         id: authUser.id,
         email: authUser.email,
         username: data.username,
-        role: data.role,
+        role: data.roles?.name,
+        role_id: data.role_id,
+        is_active: data.is_active,
+        allowedPages, // ← list ng pages na allowed
       });
     }
   };
 
   useEffect(() => {
-    // Check existing session on mount
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabaseEmployees.auth.getSession().then(({ data: { session } }) => {
       fetchProfile(session?.user ?? null).finally(() => setLoading(false));
     });
 
-    // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabaseEmployees.auth.onAuthStateChange((_event, session) => {
       fetchProfile(session?.user ?? null);
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  const login = async (email, password) => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  const login = async (emailOrUsername, password) => {
+    let email = emailOrUsername;
+
+    // Check if input is username (walang @ sign)
+    if (!emailOrUsername.includes("@")) {
+      const { data, error } = await supabaseEmployees
+        .from("profiles_with_email")
+        .select("email")
+        .eq("username", emailOrUsername)
+        .single();
+
+      if (error || !data?.email) {
+        throw new Error("Username not found.");
+      }
+
+      email = data.email;
+    }
+
+    const { data, error } = await supabaseEmployees.auth.signInWithPassword({ email, password });
     if (error) throw error;
     return data;
   };
 
   const logout = async () => {
-    await supabase.auth.signOut();
+    await supabaseEmployees.auth.signOut();
     setUser(null);
   };
 

@@ -128,11 +128,11 @@ export default function AdminLogin() {
                 color: "#4CB1E9",
                 textTransform: "uppercase", letterSpacing: 1.2,
               }}>
-                Email Address
+                Email or Username
               </label>
               <input
-                type="email"
-                placeholder="admin@cclpi.com.ph"
+                type="text"
+                placeholder="admin@cclpi.com.ph or cclpi-juan"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
