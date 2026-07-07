@@ -32,8 +32,8 @@ import AdminLogin from "@/pages/AdminLogin";
 import AdminDashboard from "@/pages/AdminDashboard";
 import HRManagement from "@/pages/admin/HRManagement";
 import DashboardHome from "@/pages/admin/DashboardHome";
-import RoleManagement from "@/pages/admin/roleManagement";
-import UserManagement from "@/pages/admin/Usermanagement";
+import RoleManagement from "@/pages/admin/RoleManagement";
+import UserManagement from "@/pages/admin/UserManagement";
 
 export default function App() {
   return (
