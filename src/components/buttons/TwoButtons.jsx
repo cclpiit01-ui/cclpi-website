@@ -9,7 +9,7 @@ const TwoButtons = () => {
 
       {/* LEFT BUTTON: Primary Yellow (Same as 'Join the Mission' in BannerTwo) */}
       <a
-        href="https://sc.cclpi.com.ph:8080/#/referral/4f030d0843486b39/1"
+        href="https://portal.cclpi.com.ph/angelica"
         target="_blank"
         rel="noopener noreferrer"
         /* Ginamit natin ang rounded-full, shadow-2xl, at py-4 px-10 

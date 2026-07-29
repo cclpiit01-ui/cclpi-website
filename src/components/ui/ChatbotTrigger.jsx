@@ -20,7 +20,7 @@ const ChatbotTrigger = ({ moveDown }) => {
     }
   }, [messages, isLoading]);
 
-  // const WEBHOOK_URL = 'http://localhost:5678/webhook/583d7f52-e590-4b70-a0b0-38f95e83fa94/chat';
+  //const WEBHOOK_URL = 'http://localhost:5678/webhook/583d7f52-e590-4b70-a0b0-38f95e83fa94/chat';
   const WEBHOOK_URL = 'https://cclpiplans.app.n8n.cloud/webhook/583d7f52-e590-4b70-a0b0-38f95e83fa94/chat';
 
   const handleSendMessage = async () => {
@@ -108,6 +108,14 @@ const ChatbotTrigger = ({ moveDown }) => {
                       ul: ({node, ...props}) => <ul className="list-disc ml-4 mb-2 space-y-1" {...props} />,
                       li: ({node, ...props}) => <li className="marker:text-yellow-400" {...props} />,
                       strong: ({node, ...props}) => <strong className="font-extrabold text-yellow-300" {...props} />,
+                      a: ({node, ...props}) => (
+                        <a
+                          {...props}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-yellow-300 underline underline-offset-2 hover:text-yellow-200 font-semibold"
+                        />
+                      ),
                     }}
                   >
                     {msg.text}
