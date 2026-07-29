@@ -35,7 +35,7 @@ const StickyPlanBar = ({ plan, onClose }) => {
           </div>
 
           <a 
-            href="https://sc.cclpi.com.ph:8080/#/referral/4f030d0843486b39/1" 
+            href="https://portal.cclpi.com.ph/angelica" 
             target="_blank" 
             rel="noopener noreferrer"
             className="bg-brand-accent hover:bg-brand-accent text-blue-950 px-6 py-2 rounded-full font-black uppercase text-[11px] transition-all"

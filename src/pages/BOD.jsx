@@ -13,9 +13,9 @@ import hilotImg from "@/assets/bod/hilot.jpg";
 import kerwinImg from "@/assets/bod/kerwin.jpg";
 import chanImg from "@/assets/bod/chan.jpg";
 import reyesImg from "@/assets/bod/reyes.jpg";
-import viliranImg from "@/assets/bod/viliran.jpg";
+import elmacoImg from "@/assets/bod/elmaco.jpg";
 import ferreriaImg from "@/assets/bod/ferreria.jpg";
-import sindayenImg from "@/assets/bod/sindayen.jpg";
+import alcantaraImg from "@/assets/bod/alcantara.jpg";
 import evangelioImg from "@/assets/bod/evangelio.jpg";
 import delapenaImg from "@/assets/bod/delapena.jpg";
 
@@ -40,10 +40,10 @@ const BOD = () => {
       image: roblesImg
     },
     {
-      name: "Fr. Elmo P. Manching",
+      name: "Judge Antonio Manuel A. Alcantara, (Ret.)",
       role: "Director",
       company: "CLIMBS Life and General Insurance Cooperative",
-      image: manchingImg
+      image: alcantaraImg
     },
     {
       name: "Alvin Y. Tan Unjo",
@@ -76,10 +76,10 @@ const BOD = () => {
       image: reyesImg
     },
     {
-      name: "Rowena R. Viliran",
+      name: "Leovigildo A. Elmaco",
       role: "Director",
       company: "Perpetual Help Community Cooperative Dumaguete (PHCCI)",
-      image: viliranImg
+      image: elmacoImg
     },
     {
       name: "Augustus J.V. Ferreria",
@@ -88,10 +88,10 @@ const BOD = () => {
       image: ferreriaImg
     },
     {
-      name: "Marlene D. Sindayen",
+      name: "Fr. Elmo P. Manching",
       role: "Independent Director",
-      company: "Novaliches Development Cooperative (NOVADECI) / CLIMBS",
-      image: sindayenImg
+      company: "",
+      image: manchingImg
     },
     {
       name: "Atty. Daniel O. Evangelio, Jr.",

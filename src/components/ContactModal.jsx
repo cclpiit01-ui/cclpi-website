@@ -32,7 +32,7 @@ export default function ContactModal({ onClose }) {
     {
       region: "Mindanao",
       locations: [
-        { name: "CAGAYAN DE ORO (Head Office)", details: "J. Seriña St, Brgy. Carmen, Cagayan De Oro City", type: "Area Office" },
+        { name: "CAGAYAN DE ORO (Head Office)", details: "35 J.V. Seriña St, Brgy. Carmen, Cagayan De Oro City", type: "Area Office" },
         { name: "DAVAO", details: "2nd Floor, RBT Bldg., Ilustre St., Davao City", type: "Area Office" },
         { name: "BUTUAN", details: "ANTRECCO Main Office, Brgy. Dagohoy, JP Rosales Ave., Butuan City", type: "Sales Rep" },
         { name: "GENERAL SANTOS", details: "2nd floor, SAFI 4 Building, Room 202, Quezon Ave., Brgy. Dadiangas West", type: "Sales Rep" }

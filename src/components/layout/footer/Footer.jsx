@@ -147,7 +147,7 @@ export default function Footer() {
         </h4>
         <ul className="space-y-3 text-sm text-gray-600">
           <li>We’re here to listen.</li>
-          <li>J. Seriña St, Brgy. Carmen, Cagayan De Oro City, 9000 Misamis Oriental</li>
+          <li>35 J.V. Seriña St, Brgy. Carmen, Cagayan De Oro City, 9000 Misamis Oriental</li>
           <li>+63 917 154 3459</li>
           <li>8:30am to 5:30pm</li>
           <li>Monday to Friday</li>
