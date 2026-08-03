@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabaseEmployees } from "@/lib/supabaseEmployees";
+const WEBHOOK_URL = "https://cclpiplans.app.n8n.cloud/webhook/16a10166-a8b3-4bd6-9485-e2f471a1405e";
 
 export default function HRManagement() {
   const [employees, setEmployees] = useState([]);
@@ -23,6 +24,8 @@ export default function HRManagement() {
   const [signatureFile, setSignatureFile] = useState(null);
   const [editPictureFile, setEditPictureFile] = useState(null);
   const [editSignatureFile, setEditSignatureFile] = useState(null);
+  const [downloadingId, setDownloadingId] = useState(null);
+
 
   useEffect(() => { fetchEmployees(); }, [sortOrder]);
 
@@ -32,6 +35,61 @@ export default function HRManagement() {
     if (!error) setEmployees(data);
     setLoading(false);
   };
+
+const handleDownloadPoster = async (emp) => {
+  setDownloadingId(emp.id);
+  try {
+    // 1. Tignan muna kung may existing completed poster na
+    let { data: existing } = await supabaseEmployees
+      .from("birthday_posters")
+      .select("image_url")
+      .eq("employee_id", emp.id)
+      .eq("status", "completed")
+      .order("generated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    let imageUrl = existing?.image_url;
+
+    // 2. Kung wala pa, i-trigger ang n8n webhook para mag-generate
+    if (!imageUrl) {
+      const response = await fetch(WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ employee_id: emp.id }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Webhook error (status ${response.status})`);
+      }
+
+      const result = await response.json();
+
+      if (!result.success || !result.image_url) {
+        alert("Hindi na-generate ang poster para kay " + emp.full_name + ": " + (result.error || "Unknown error"));
+        setDownloadingId(null);
+        return;
+      }
+
+      imageUrl = result.image_url;
+    }
+
+    // 3. I-download bilang blob (para hindi mag-open sa bagong tab)
+    const imgResponse = await fetch(imageUrl);
+    const blob = await imgResponse.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = `${emp.full_name.replace(/\s+/g, "_")}_Birthday_Poster.png`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(blobUrl);
+  } catch (err) {
+    alert("May error habang nag-ge-generate/download ng poster: " + err.message);
+  }
+  setDownloadingId(null);
+};
 
   const openEdit = (emp) => { setEditData({ ...emp }); setEditModal(true); };
   const handleEditChange = (field, value) => setEditData(prev => ({ ...prev, [field]: value }));
@@ -214,15 +272,39 @@ export default function HRManagement() {
                         <td style={{ padding: "12px 16px" }}>
                           <span style={{ padding: "4px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600, background: emp.status === "Active" ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)", color: emp.status === "Active" ? "#16a34a" : "#dc2626" }}>{emp.status}</span>
                         </td>
-                        <td style={{ padding: "12px 16px" }}>
-                          <div style={{ display: "flex", gap: 8 }}>
-                            <button onClick={() => openEdit(emp)} style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid rgba(1,63,153,0.2)", background: "#fff", color: "#013F99", fontSize: 11, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>Edit</button>
-                            <button onClick={() => { setViewData(emp); setViewModal(true); }} style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid rgba(76,177,233,0.3)", background: "#fff", color: "#4CB1E9", fontSize: 11, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
-                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                              View
-                            </button>
-                          </div>
-                        </td>
+<td style={{ padding: "12px 16px" }}>
+  <div style={{ display: "flex", gap: 8 }}>
+    <button onClick={() => openEdit(emp)} style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid rgba(1,63,153,0.2)", background: "#fff", color: "#013F99", fontSize: 11, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>Edit</button>
+    <button onClick={() => { setViewData(emp); setViewModal(true); }} style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid rgba(76,177,233,0.3)", background: "#fff", color: "#4CB1E9", fontSize: 11, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+      View
+    </button>
+    {birthMonth !== "All" && (
+      <button
+        onClick={() => handleDownloadPoster(emp)}
+        disabled={downloadingId === emp.id}
+        style={{
+          padding: "6px 10px",
+          borderRadius: 8,
+          border: "1px solid rgba(243,207,71,0.4)",
+          background: downloadingId === emp.id ? "#f6fbfe" : "#fff",
+          color: "#b8860b",
+          fontSize: 11,
+          fontWeight: 600,
+          cursor: downloadingId === emp.id ? "not-allowed" : "pointer",
+          display: "flex",
+          alignItems: "center",
+          gap: 4,
+        }}
+      >
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        {downloadingId === emp.id ? "Generating..." : "Download"}
+      </button>
+    )}
+  </div>
+</td>
                       </tr>
                     ))
                   )}
