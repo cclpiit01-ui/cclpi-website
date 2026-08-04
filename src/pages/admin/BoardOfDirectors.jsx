@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { supabaseEmployees } from "@/lib/supabaseEmployees";
 
+const WEBHOOK_URL = "https://cclpiplans.app.n8n.cloud/webhook/16a10166-a8b3-4bd6-9485-e2f471a1405e";
+
 export default function BoardOfDirectors() {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -21,6 +23,7 @@ export default function BoardOfDirectors() {
   const [viewData, setViewData] = useState(null);
 
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [downloadingId, setDownloadingId] = useState(null);
 
   useEffect(() => { fetchMembers(); }, []);
 
@@ -93,6 +96,61 @@ export default function BoardOfDirectors() {
     setDeleteConfirm(null);
     if (!error) fetchMembers();
     else alert("Error deleting: " + error.message);
+  };
+
+  const handleDownloadPoster = async (member) => {
+    setDownloadingId(member.id);
+    try {
+      // Tignan muna kung may existing completed poster na
+      let { data: existing } = await supabaseEmployees
+        .from("birthday_posters")
+        .select("image_url")
+        .eq("employee_id", member.id)
+        .eq("status", "completed")
+        .order("generated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      let imageUrl = existing?.image_url;
+
+      // Kung wala pa, i-trigger ang n8n webhook para mag-generate
+      if (!imageUrl) {
+        const response = await fetch(WEBHOOK_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ employee_id: member.id, type: "bod" }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Webhook error (status ${response.status})`);
+        }
+
+        const result = await response.json();
+
+        if (!result.success || !result.image_url) {
+          alert("Hindi na-generate ang poster para kay " + member.full_name + ": " + (result.error || "Unknown error"));
+          setDownloadingId(null);
+          return;
+        }
+
+        imageUrl = result.image_url;
+      }
+
+      // I-download bilang blob (para hindi mag-open sa bagong tab)
+      const imgResponse = await fetch(imageUrl);
+      const blob = await imgResponse.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = `${member.full_name.replace(/\s+/g, "_")}_Birthday_Poster.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      alert("May error habang nag-ge-generate/download ng poster: " + err.message);
+    }
+    setDownloadingId(null);
   };
 
   const filtered = members.filter((m) => {
@@ -178,6 +236,22 @@ export default function BoardOfDirectors() {
                         <div style={{ display: "flex", gap: 8 }}>
                           <button onClick={() => openEdit(m)} style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid rgba(1,63,153,0.2)", background: "#fff", color: "#013F99", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>Edit</button>
                           <button onClick={() => { setViewData(m); setViewModal(true); }} style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid rgba(76,177,233,0.3)", background: "#fff", color: "#4CB1E9", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>View</button>
+                          <button
+                            onClick={() => handleDownloadPoster(m)}
+                            disabled={downloadingId === m.id}
+                            style={{
+                              padding: "6px 10px",
+                              borderRadius: 8,
+                              border: "1px solid rgba(243,207,71,0.4)",
+                              background: downloadingId === m.id ? "#f6fbfe" : "#fff",
+                              color: "#b8860b",
+                              fontSize: 11,
+                              fontWeight: 600,
+                              cursor: downloadingId === m.id ? "not-allowed" : "pointer",
+                            }}
+                          >
+                            {downloadingId === m.id ? "Generating..." : "Download"}
+                          </button>
                           <button onClick={() => setDeleteConfirm(m)} style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid rgba(239,68,68,0.25)", background: "#fff", color: "#ef4444", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>Delete</button>
                         </div>
                       </td>
