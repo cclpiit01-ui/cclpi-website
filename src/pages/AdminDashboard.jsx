@@ -189,6 +189,12 @@ const Sidebar = ({ user, onLogout }) => {
         <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
       </svg>
     ),
+    boardOfDirectors: (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+    <circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/>
+    <circle cx="18" cy="6" r="2"/><path d="M22 21v-1a3 3 0 0 0-2.5-2.96"/>
+  </svg>
+),
   };
 
   // Admin-only items — always visible sa Admin role

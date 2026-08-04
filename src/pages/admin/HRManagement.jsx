@@ -24,6 +24,7 @@ export default function HRManagement() {
   const [signatureFile, setSignatureFile] = useState(null);
   const [editPictureFile, setEditPictureFile] = useState(null);
   const [editSignatureFile, setEditSignatureFile] = useState(null);
+  const [editPhotoCutoutFile, setEditPhotoCutoutFile] = useState(null);
   const [downloadingId, setDownloadingId] = useState(null);
 
 
@@ -103,13 +104,15 @@ const handleDownloadPoster = async (emp) => {
     return urlData.publicUrl;
   };
 
-  const handleSave = async () => {
+const handleSave = async () => {
     setSaving(true);
     try {
       let pictureUrl = editData.picture;
       let signatureUrl = editData.signature;
+      let photoCutoutUrl = editData.photo_cutout_url;
       if (editPictureFile) pictureUrl = await uploadFile(editPictureFile, 'pictures');
       if (editSignatureFile) signatureUrl = await uploadFile(editSignatureFile, 'signatures');
+      if (editPhotoCutoutFile) photoCutoutUrl = await uploadFile(editPhotoCutoutFile, 'cutouts');
       const { error } = await supabaseEmployees.from("employees").update({
         first_name: editData.first_name, middle_name: editData.middle_name, last_name: editData.last_name,
         full_name: `${editData.first_name} ${editData.middle_name ? editData.middle_name[0] + '. ' : ''}${editData.last_name}`,
@@ -118,9 +121,10 @@ const handleDownloadPoster = async (emp) => {
         date_hired: editData.date_hired, sss: editData.sss, tin: editData.tin, philhealth: editData.philhealth,
         hdmf: editData.hdmf, contact_person: editData.contact_person, address: editData.address,
         contact_number: editData.contact_number, picture: pictureUrl, signature: signatureUrl,
+        photo_cutout_url: photoCutoutUrl,
       }).eq("id", editData.id);
       setSaving(false);
-      if (!error) { setEditModal(false); setEditPictureFile(null); setEditSignatureFile(null); fetchEmployees(); }
+      if (!error) { setEditModal(false); setEditPictureFile(null); setEditSignatureFile(null); setEditPhotoCutoutFile(null); fetchEmployees(); }
       else alert("Error saving: " + error.message);
     } catch (err) { alert("Upload error: " + err.message); setSaving(false); }
   };
@@ -607,6 +611,34 @@ const handleDownloadPoster = async (emp) => {
   )}
   <input type="file" accept="image/*" onChange={(e) => setEditSignatureFile(e.target.files[0])} style={{ padding: "8px 12px", border: "1px solid rgba(1,63,153,0.15)", borderRadius: 8, fontSize: 13, fontFamily: "'Poppins', sans-serif", width: "100%", boxSizing: "border-box" }} />
   <p style={{ fontSize: 11, color: "#94a3b8", margin: 0 }}>Leave blank to keep current signature</p>
+
+  <div style={{ gridColumn: "1 / -1", ...fieldStyle }}>
+  <label style={labelStyle}>Photo Cutout (para sa Birthday Poster)</label>
+  {(editData.photo_cutout_url && !editPhotoCutoutFile) && (
+    <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 8 }}>
+      <img src={editData.photo_cutout_url} alt="current cutout" style={{ width: 80, height: 80, objectFit: "contain", borderRadius: 10, border: "2px solid rgba(1,63,153,0.15)", background: "#f6fbfe" }} />
+      <button type="button" onClick={() => handleEditChange("photo_cutout_url", null)}
+        style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 6, width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2.5" strokeLinecap="round">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+  )}
+  {editPhotoCutoutFile && (
+    <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 8 }}>
+      <img src={URL.createObjectURL(editPhotoCutoutFile)} alt="preview" style={{ width: 80, height: 80, objectFit: "contain", borderRadius: 10, border: "2px solid rgba(1,63,153,0.15)", background: "#f6fbfe" }} />
+      <button type="button" onClick={() => setEditPhotoCutoutFile(null)}
+        style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 6, width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2.5" strokeLinecap="round">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+  )}
+  <input type="file" accept="image/png" onChange={(e) => setEditPhotoCutoutFile(e.target.files[0])} style={{ padding: "8px 12px", border: "1px solid rgba(1,63,153,0.15)", borderRadius: 8, fontSize: 13, fontFamily: "'Poppins', sans-serif", width: "100%", boxSizing: "border-box" }} />
+  <p style={{ fontSize: 11, color: "#94a3b8", margin: 0 }}>PNG na may transparent background (Photoshop cutout). Leave blank to keep current.</p>
+</div>
 </div>
             </div>
 

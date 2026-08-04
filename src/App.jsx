@@ -34,6 +34,7 @@ import HRManagement from "@/pages/admin/HRManagement";
 import DashboardHome from "@/pages/admin/DashboardHome";
 import RoleManagement from "@/pages/admin/RoleManagement";
 import UserManagement from "@/pages/admin/UserManagement";
+import BoardOfDirectors from "@/pages/admin/BoardOfDirectors";
 
 export default function App() {
   return (
@@ -47,6 +48,7 @@ export default function App() {
             <Route path="users" element={<UserManagement/>} />
             <Route path="hr" element={<HRManagement />} />
             <Route path="roles" element={<RoleManagement />} />
+             <Route path="board-of-directors" element={<BoardOfDirectors />} />
           </Route>
           
 
