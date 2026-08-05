@@ -30,7 +30,7 @@ const AdditionalBenefits = () => {
             </h2>
             <div className="w-24 h-2 bg-brand-accent mx-auto mt-6 rounded-full" />
             <p className="text-slate-500 mt-6 font-sans italic max-w-2xl mx-auto text-sm md:text-base">
-              Coverage applicable for plan holders within the insurable age (up to 69) or within the 10-year period.
+              Coverage applicable for plan holders within the insurable age (up to 65) or within the 10-year period.
             </p>
           </div>
         </Reveal>
@@ -47,7 +47,7 @@ const AdditionalBenefits = () => {
             <InsuranceRow 
               delay={0.3}
               title="Total & Permanent Disability and Waiver of Installments caused by Accident" 
-              desc="Balance fully paid if disability continues uninterrupted for 180 days before age 69." 
+              desc="Balance fully paid if disability continues uninterrupted for 180 days before age 65." 
             />
             <InsuranceRow 
               delay={0.2}
