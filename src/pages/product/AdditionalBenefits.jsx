@@ -105,7 +105,7 @@ const AdditionalBenefits = () => {
                       <UserCheck size={20} />
                       <span className="text-xs font-black uppercase tracking-widest text-white/70">Insurable Age Range</span>
                     </div>
-                    <p className="text-5xl font-heading font-black mb-2">18 - 69</p>
+                    <p className="text-5xl font-heading font-black mb-2">18 - 65</p>
                     <p className="text-[11px] font-sans opacity-80 leading-snug">
                       Note: Entry age for insurance extension is 18 to 64 years old.
                             Ages 66 to 69 have additional premium for the insurance coverage up to 200,000.00.

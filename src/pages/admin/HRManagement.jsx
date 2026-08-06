@@ -11,6 +11,7 @@ export default function HRManagement() {
   const [currentPage, setCurrentPage] = useState(1);
   const [sortOrder, setSortOrder] = useState("asc");
   const [departmentFilter, setDepartmentFilter] = useState("All");
+  const [areaFilter, setAreaFilter] = useState("All");
   const itemsPerPage = 10;
   const [editModal, setEditModal] = useState(false);
   const [editData, setEditData] = useState(null);
@@ -92,6 +93,24 @@ const handleDownloadPoster = async (emp) => {
   setDownloadingId(null);
 };
 
+const handleDownloadSignature = async (emp) => {
+  try {
+    const imgResponse = await fetch(emp.signature);
+    const blob = await imgResponse.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = `${emp.full_name.replace(/\s+/g, "_")}_Signature.png`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(blobUrl);
+  } catch (err) {
+    alert("Error downloading signature: " + err.message);
+  }
+};
+
+
   const openEdit = (emp) => { setEditData({ ...emp }); setEditModal(true); };
   const handleEditChange = (field, value) => setEditData(prev => ({ ...prev, [field]: value }));
 
@@ -147,13 +166,15 @@ const handleSave = async () => {
     const matchSearch = emp.full_name?.toLowerCase().includes(search.toLowerCase()) || emp.id?.toLowerCase().includes(search.toLowerCase()) || emp.job_position?.toLowerCase().includes(search.toLowerCase());
     const matchStatus = statusFilter === "All" || emp.status === statusFilter;
     const matchDepartment = departmentFilter === "All" || emp.department === departmentFilter;
+    const matchArea = areaFilter === "All" || emp.area === areaFilter;
     const matchBirthMonth = birthMonth === "All" || (emp.dob && new Date(emp.dob).getMonth() + 1 === parseInt(birthMonth));
-    return matchSearch && matchStatus && matchBirthMonth && matchDepartment;
+    return matchSearch && matchStatus && matchBirthMonth && matchDepartment && matchArea;
   });
 
   const totalPages = Math.ceil(filtered.length / itemsPerPage);
   const paginated = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
   const departments = ["All", ...new Set(employees.map(e => e.department).filter(Boolean).sort())];
+  const areas = ["All", ...new Set(employees.map(e => e.area).filter(Boolean).sort())];
   const total = employees.length;
   const active = employees.filter((e) => e.status === "Active").length;
   const inactive = employees.filter((e) => e.status === "In-active").length;
@@ -221,6 +242,27 @@ const handleSave = async () => {
           >
             {departments.map((d) => (
               <option key={d} value={d}>{d === "All" ? "All Departments" : d}</option>
+            ))}
+          </select>
+
+          {/* AREA FILTER */}
+          <select
+            value={areaFilter}
+            onChange={(e) => { setAreaFilter(e.target.value); setCurrentPage(1); }}
+            style={{
+              padding: "9px 18px",
+              borderRadius: 10,
+              border: "1px solid rgba(1,63,153,0.12)",
+              background: areaFilter !== "All" ? "#013F99" : "#fff",
+              color: areaFilter !== "All" ? "#fff" : "#64748b",
+              fontSize: 12, fontWeight: 600,
+              cursor: "pointer",
+              fontFamily: "'Poppins', sans-serif",
+              outline: "none",
+            }}
+          >
+            {areas.map((a) => (
+              <option key={a} value={a}>{a === "All" ? "All Areas" : a}</option>
             ))}
           </select>
            {/* Birthday*/}
@@ -503,7 +545,18 @@ const handleSave = async () => {
               {viewData.signature && (
                 <div style={{ gridColumn: "1 / -1", display: "flex", flexDirection: "column", gap: 4, padding: "12px 16px", background: "#f6fbfe", borderRadius: 10, border: "1px solid rgba(1,63,153,0.06)" }}>
                   <div style={{ fontSize: 10, fontWeight: 700, color: "#4CB1E9", textTransform: "uppercase", letterSpacing: 1 }}>Signature</div>
-                  <img src={viewData.signature} alt="signature" style={{ width: 160, height: 80, objectFit: "contain", borderRadius: 10, marginTop: 8, border: "2px solid rgba(1,63,153,0.15)", background: "#fff" }} />
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 8 }}>
+                    <img src={viewData.signature} alt="signature" style={{ width: 160, height: 80, objectFit: "contain", borderRadius: 10, border: "2px solid rgba(1,63,153,0.15)", background: "#fff" }} />
+                    <button
+                      onClick={() => handleDownloadSignature(viewData)}
+                      style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid rgba(1,63,153,0.2)", background: "#fff", color: "#013F99", fontSize: 11, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
+                    >
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                      </svg>
+                      Download
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
