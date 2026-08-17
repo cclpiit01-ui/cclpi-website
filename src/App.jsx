@@ -35,6 +35,8 @@ import DashboardHome from "@/pages/admin/DashboardHome";
 import RoleManagement from "@/pages/admin/RoleManagement";
 import UserManagement from "@/pages/admin/UserManagement";
 import BoardOfDirectors from "@/pages/admin/BoardOfDirectors";
+import SalesCounselorManagement from "@/pages/admin/SalesCounselorManagement";
+import HMOManagement from "@/pages/admin/HMOManagement";
 
 export default function App() {
   return (
@@ -48,7 +50,9 @@ export default function App() {
             <Route path="users" element={<UserManagement/>} />
             <Route path="hr" element={<HRManagement />} />
             <Route path="roles" element={<RoleManagement />} />
-             <Route path="board-of-directors" element={<BoardOfDirectors />} />
+            <Route path="board-of-directors" element={<BoardOfDirectors />} />
+            <Route path="sales-counselors" element={<SalesCounselorManagement />} />
+            <Route path="/admin/hmo" element={<HMOManagement />} />
           </Route>
           
 
