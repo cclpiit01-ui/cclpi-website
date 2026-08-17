@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabaseEmployees } from "@/lib/supabaseEmployees";
+import * as XLSX from "xlsx";
 
 export default function HMOManagement() {
   const [employees, setEmployees] = useState([]);
@@ -60,6 +61,91 @@ export default function HMOManagement() {
 
     setLoading(false);
   };
+
+const handleExportExcel = async () => {
+  // 1. Kunin lahat ng current memberships
+  const { data: memberships } = await supabaseEmployees
+    .from("hmo_employees")
+    .select("employee_id, hmo_member_id, effective_date, valid_until")
+    .eq("is_current", true);
+
+  const membershipMap = {};
+  (memberships || []).forEach(m => { membershipMap[m.employee_id] = m; });
+
+  // 2. Kunin lahat ng dependents
+  const { data: allDependents } = await supabaseEmployees
+    .from("hmo_dependents")
+    .select("employee_id, full_name, hmo_card_number, relationship, birth_date, gender");
+
+  const depsByEmployee = {};
+  (allDependents || []).forEach(d => {
+    if (!depsByEmployee[d.employee_id]) depsByEmployee[d.employee_id] = [];
+    depsByEmployee[d.employee_id].push(d);
+  });
+
+  // 3. Gawa ng flat rows: isang row per dependent (o isang row kung walang dependent)
+  const rows = [];
+  employees.forEach(emp => {
+    const deps = depsByEmployee[emp.id] || [];
+    const membership = membershipMap[emp.id];
+    const totalDeps = deps.length;
+
+    if (deps.length === 0) {
+      rows.push({
+        "Employee ID": emp.id,
+        "Full Name": emp.full_name,
+        "HMO Member ID": membership?.hmo_member_id || "",
+        "Effectivity Date": membership?.effective_date || "",
+        "Valid Until": membership?.valid_until || "",
+        "Total Dependents": totalDeps,
+        "Dependent Name": "",
+        "HMO Card Number": "",
+        "Relationship": "",
+        "Date of Birth": "",
+        "Gender": "",
+      });
+    } else {
+      deps.forEach(dep => {
+        rows.push({
+          "Employee ID": emp.id,
+          "Full Name": emp.full_name,
+          "HMO Member ID": membership?.hmo_member_id || "",
+          "Effectivity Date": membership?.effective_date || "",
+          "Valid Until": membership?.valid_until || "",
+          "Total Dependents": totalDeps,
+          "Dependent Name": dep.full_name,
+          "HMO Card Number": dep.hmo_card_number || "",
+          "Relationship": dep.relationship || "",
+          "Date of Birth": dep.birth_date || "",
+          "Gender": dep.gender || "",
+        });
+      });
+    }
+  });
+
+  // 4. Gawa ng worksheet at workbook
+  const worksheet = XLSX.utils.json_to_sheet(rows);
+
+  worksheet["!cols"] = [
+    { wch: 12 }, // Employee ID
+    { wch: 26 }, // Full Name
+    { wch: 16 }, // HMO Member ID
+    { wch: 14 }, // Effectivity Date
+    { wch: 14 }, // Valid Until
+    { wch: 14 }, // Total Dependents
+    { wch: 26 }, // Dependent Name
+    { wch: 18 }, // HMO Card Number
+    { wch: 14 }, // Relationship
+    { wch: 14 }, // Date of Birth
+    { wch: 10 }, // Gender
+  ];
+
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "HMO Dependents");
+
+  const dateStr = new Date().toISOString().split("T")[0];
+  XLSX.writeFile(workbook, `HMO_Dependents_Export_${dateStr}.xlsx`);
+};
 
   const refreshMembership = async (empId) => {
     const { data } = await supabaseEmployees
@@ -287,7 +373,17 @@ export default function HMOManagement() {
               {s}
             </button>
           ))}
+
+                  <button onClick={handleExportExcel}
+        style={{ padding: "9px 18px", borderRadius: 10, border: "1px solid rgba(1,63,153,0.12)", background: "#fff", color: "#16a34a", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "'Poppins', sans-serif", display: "flex", alignItems: "center", gap: 6 }}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        Export to Excel
+        </button>
+
         </div>
+
 
         {loading ? (
           <div style={{ padding: 40, textAlign: "center", color: "#94a3b8", fontSize: 13 }}>Loading employees...</div>
@@ -524,6 +620,14 @@ export default function HMOManagement() {
                       {["Active", "In-active", "Pending"].map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                   </div>
+                  <div style={fieldStyle}>
+                    <label style={labelStyle}>Gender</label>
+                    <select value={depForm.gender || ""} onChange={(e) => handleDepFormChange("gender", e.target.value)} style={inputStyle}>
+                        <option value="">Select...</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                    </select>
+                    </div>
                   <div style={fieldStyle}>
                     <label style={labelStyle}>HMO Card Number</label>
                     <input type="text" value={depForm.hmo_card_number || ""} onChange={(e) => handleDepFormChange("hmo_card_number", e.target.value)} style={inputStyle} />
