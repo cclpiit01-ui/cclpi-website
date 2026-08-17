@@ -30,6 +30,9 @@ export default function HMOManagement() {
   const [depForm, setDepForm] = useState({});
   const [editingDepId, setEditingDepId] = useState(null);
   const [savingDep, setSavingDep] = useState(false);
+  const [idDocFile, setIdDocFile] = useState(null);
+  const [birthCertFile, setBirthCertFile] = useState(null);
+  const [uploadingDoc, setUploadingDoc] = useState(false);
 
   useEffect(() => { fetchEmployees(); }, []);
 
@@ -60,6 +63,14 @@ export default function HMOManagement() {
     setDependentCounts(counts);
 
     setLoading(false);
+  };
+
+  const uploadDependentFile = async (file, folder) => {
+    const filename = `${folder}/${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
+    const { error } = await supabaseEmployees.storage.from('hmo-documents').upload(filename, file);
+    if (error) throw error;
+    const { data: urlData } = supabaseEmployees.storage.from('hmo-documents').getPublicUrl(filename);
+    return urlData.publicUrl;
   };
 
 const handleExportExcel = async () => {
@@ -262,52 +273,72 @@ const handleExportExcel = async () => {
   };
 
   // ── DEPENDENT ACTIONS ─────────────────────────────
-  const openAddDepForm = () => {
+const openAddDepForm = () => {
     setDepForm({ relationship: "Spouse", hmo_status: "Active" });
     setEditingDepId(null);
+    setIdDocFile(null);
+    setBirthCertFile(null);
     setDepFormOpen(true);
   };
 
   const openEditDepForm = (dep) => {
     setDepForm({ ...dep });
     setEditingDepId(dep.id);
+    setIdDocFile(null);
+    setBirthCertFile(null);
     setDepFormOpen(true);
   };
 
   const handleDepFormChange = (field, value) => setDepForm(prev => ({ ...prev, [field]: value }));
 
-  const handleSaveDependent = async () => {
+const handleSaveDependent = async () => {
     if (!depForm.full_name || !depForm.relationship) {
       alert("Kailangan ng Full Name at Relationship.");
       return;
     }
     setSavingDep(true);
-    const payload = {
-      employee_id: activeEmployee.id,
-      full_name: depForm.full_name,
-      relationship: depForm.relationship,
-      birth_date: depForm.birth_date || null,
-      hmo_provider: depForm.hmo_provider || null,
-      hmo_card_number: depForm.hmo_card_number || null,
-      hmo_status: depForm.hmo_status || "Active",
-      effectivity_date: depForm.effectivity_date || null,
-      remarks: depForm.remarks || null,
-      updated_at: new Date().toISOString(),
-    };
 
-    let error;
-    if (editingDepId) {
-      ({ error } = await supabaseEmployees.from("hmo_dependents").update(payload).eq("id", editingDepId));
-    } else {
-      ({ error } = await supabaseEmployees.from("hmo_dependents").insert(payload));
+    try {
+      let idDocUrl = depForm.id_document_url;
+      let birthCertUrl = depForm.birth_cert_url;
+
+      if (idDocFile) idDocUrl = await uploadDependentFile(idDocFile, 'id-documents');
+      if (birthCertFile) birthCertUrl = await uploadDependentFile(birthCertFile, 'birth-certificates');
+
+      const payload = {
+        employee_id: activeEmployee.id,
+        full_name: depForm.full_name,
+        relationship: depForm.relationship,
+        birth_date: depForm.birth_date || null,
+        gender: depForm.gender || null,
+        hmo_provider: depForm.hmo_provider || null,
+        hmo_card_number: depForm.hmo_card_number || null,
+        hmo_status: depForm.hmo_status || "Active",
+        effectivity_date: depForm.effectivity_date || null,
+        remarks: depForm.remarks || null,
+        id_document_url: idDocUrl || null,
+        birth_cert_url: birthCertUrl || null,
+        updated_at: new Date().toISOString(),
+      };
+
+      let error;
+      if (editingDepId) {
+        ({ error } = await supabaseEmployees.from("hmo_dependents").update(payload).eq("id", editingDepId));
+      } else {
+        ({ error } = await supabaseEmployees.from("hmo_dependents").insert(payload));
+      }
+
+      if (error) throw error;
+
+      setDepFormOpen(false);
+      setIdDocFile(null);
+      setBirthCertFile(null);
+      await refreshDependents(activeEmployee.id);
+      setDependentCounts(prev => ({ ...prev, [activeEmployee.id]: (prev[activeEmployee.id] || 0) + (editingDepId ? 0 : 1) }));
+    } catch (err) {
+      alert("Error saving dependent: " + err.message);
     }
-
     setSavingDep(false);
-    if (error) { alert("Error saving dependent: " + error.message); return; }
-
-    setDepFormOpen(false);
-    await refreshDependents(activeEmployee.id);
-    setDependentCounts(prev => ({ ...prev, [activeEmployee.id]: (prev[activeEmployee.id] || 0) + (editingDepId ? 0 : 1) }));
   };
 
   const handleDeleteDependent = async (dep) => {
@@ -317,6 +348,34 @@ const handleExportExcel = async () => {
     await refreshDependents(activeEmployee.id);
     setDependentCounts(prev => ({ ...prev, [activeEmployee.id]: Math.max(0, (prev[activeEmployee.id] || 1) - 1) }));
   };
+
+  const handleDownloadDependentFiles = async (dep) => {
+  if (!dep.id_document_url && !dep.birth_cert_url) {
+    alert("Walang naka-upload na files para kay " + dep.full_name);
+    return;
+  }
+
+  const downloadFile = async (url, label) => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const ext = url.split('.').pop().split('?')[0];
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = `${dep.full_name.replace(/\s+/g, "_")}_${label}.${ext}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      alert(`Error downloading ${label}: ` + err.message);
+    }
+  };
+
+  if (dep.id_document_url) await downloadFile(dep.id_document_url, "Valid_ID");
+  if (dep.birth_cert_url) await downloadFile(dep.birth_cert_url, "Birth_Certificate");
+};
 
   // ── FILTERS / PAGINATION ─────────────────────────
   const filtered = employees.filter((emp) => {
@@ -582,7 +641,25 @@ const handleExportExcel = async () => {
                         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                           <span style={{ padding: "4px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600, background: dep.hmo_status === "Active" ? "rgba(34,197,94,0.1)" : dep.hmo_status === "Pending" ? "rgba(243,207,71,0.15)" : "rgba(239,68,68,0.1)", color: dep.hmo_status === "Active" ? "#16a34a" : dep.hmo_status === "Pending" ? "#b8860b" : "#dc2626" }}>{dep.hmo_status}</span>
                           <button onClick={() => openEditDepForm(dep)} style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid rgba(1,63,153,0.2)", background: "#fff", color: "#013F99", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>Edit</button>
-                          <button onClick={() => handleDeleteDependent(dep)} style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid rgba(239,68,68,0.2)", background: "#fff", color: "#dc2626", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>Delete</button>
+                          {/* <button onClick={() => handleDeleteDependent(dep)} style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid rgba(239,68,68,0.2)", background: "#fff", color: "#dc2626", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>Delete</button> */}
+                                                     <button
+                            onClick={() => handleDownloadDependentFiles(dep)}
+                            disabled={!dep.id_document_url && !dep.birth_cert_url}
+                            style={{
+                              padding: "6px 12px", borderRadius: 8,
+                              border: "1px solid rgba(76,177,233,0.3)",
+                              background: "#fff",
+                              color: (dep.id_document_url || dep.birth_cert_url) ? "#4CB1E9" : "#cbd5e1",
+                              fontSize: 11, fontWeight: 600,
+                              cursor: (dep.id_document_url || dep.birth_cert_url) ? "pointer" : "not-allowed",
+                              display: "flex", alignItems: "center", gap: 4,
+                            }}
+                          >
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                            </svg>
+                            Download Files
+                          </button>
                         </div>
                       </div>
                     ))}
@@ -636,9 +713,37 @@ const handleExportExcel = async () => {
                     <label style={labelStyle}>Effectivity Date</label>
                     <input type="date" value={depForm.effectivity_date || ""} onChange={(e) => handleDepFormChange("effectivity_date", e.target.value)} style={inputStyle} />
                   </div>
-                  <div style={{ gridColumn: "1 / -1", ...fieldStyle }}>
+                 <div style={{ gridColumn: "1 / -1", ...fieldStyle }}>
                     <label style={labelStyle}>Remarks</label>
                     <input type="text" value={depForm.remarks || ""} onChange={(e) => handleDepFormChange("remarks", e.target.value)} style={inputStyle} />
+                  </div>
+
+                  <div style={{ gridColumn: "1 / -1", ...fieldStyle }}>
+                    <label style={labelStyle}>Valid ID</label>
+                    {(depForm.id_document_url && !idDocFile) && (
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8, padding: "8px 12px", background: "#f6fbfe", borderRadius: 8 }}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#013F99" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                        <span style={{ fontSize: 12, color: "#0b1a3b", flex: 1 }}>Uploaded na</span>
+                        <a href={depForm.id_document_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, fontWeight: 600, color: "#013F99", textDecoration: "none" }}>View/Download</a>
+                        <button type="button" onClick={() => handleDepFormChange("id_document_url", null)} style={{ background: "rgba(239,68,68,0.1)", border: "none", borderRadius: 6, width: 20, height: 20, cursor: "pointer", color: "#dc2626", fontSize: 12 }}>✕</button>
+                      </div>
+                    )}
+                    <input type="file" accept="image/*,.pdf" onChange={(e) => setIdDocFile(e.target.files[0])} style={{ padding: "8px 12px", border: "1px solid rgba(1,63,153,0.15)", borderRadius: 8, fontSize: 13, fontFamily: "'Poppins', sans-serif", width: "100%", boxSizing: "border-box" }} />
+                    {idDocFile && <p style={{ fontSize: 11, color: "#16a34a", margin: "4px 0 0" }}>Bagong file: {idDocFile.name}</p>}
+                  </div>
+
+                  <div style={{ gridColumn: "1 / -1", ...fieldStyle }}>
+                    <label style={labelStyle}>Birth Certificate</label>
+                    {(depForm.birth_cert_url && !birthCertFile) && (
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8, padding: "8px 12px", background: "#f6fbfe", borderRadius: 8 }}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#013F99" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                        <span style={{ fontSize: 12, color: "#0b1a3b", flex: 1 }}>Uploaded na</span>
+                        <a href={depForm.birth_cert_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, fontWeight: 600, color: "#013F99", textDecoration: "none" }}>View/Download</a>
+                        <button type="button" onClick={() => handleDepFormChange("birth_cert_url", null)} style={{ background: "rgba(239,68,68,0.1)", border: "none", borderRadius: 6, width: 20, height: 20, cursor: "pointer", color: "#dc2626", fontSize: 12 }}>✕</button>
+                      </div>
+                    )}
+                    <input type="file" accept="image/*,.pdf" onChange={(e) => setBirthCertFile(e.target.files[0])} style={{ padding: "8px 12px", border: "1px solid rgba(1,63,153,0.15)", borderRadius: 8, fontSize: 13, fontFamily: "'Poppins', sans-serif", width: "100%", boxSizing: "border-box" }} />
+                    {birthCertFile && <p style={{ fontSize: 11, color: "#16a34a", margin: "4px 0 0" }}>Bagong file: {birthCertFile.name}</p>}
                   </div>
                 </div>
 
