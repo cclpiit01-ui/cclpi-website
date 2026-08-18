@@ -1,24 +1,31 @@
 import { useState, useEffect } from "react";
-import { supabaseEmployees } from "@/lib/supabaseEmployees";
 
 /**
- * Sales Counselor Management
+ * Sales Counselor Management (Display-Only)
  * ---------------------------------------------------------------
  * Styled to match HRManagement.jsx exactly (same colors, fonts,
  * card/table/modal patterns). No sidebar in this file — it renders
  * inside AdminDashboard's <Outlet />, same as HRManagement does.
  *
- * Table assumed: "sales_counselors" in the same Supabase project
- * as "employees". Rename SC_TABLE below if yours differs.
+ * DATA SOURCE: Legacy REST API (read-only, GET only)
+ *   https://sys.cclpi.com.ph/api/salesCounselors
  *
- * Columns used (per your schema):
- *   id_no, full_name, birthday, address, expiry_date, is_paid,
- *   or_date, picture, signature, date_released, position, manager,
- *   agency
+ * This version is VIEW-ONLY:
+ *   - No Add / Edit / Upload
+ *   - No picture / signature fields (not usable from this API)
+ *   - List, search, filter, sort, pagination, view detail, print letter
+ *
+ * API fields used:
+ *   id_no, full_name, birthday, address, validity_date, is_paid,
+ *   or_date, date_released, position, manager, agency
+ * (validity_date from the API is displayed as "Expiry Date" in the UI)
  * ---------------------------------------------------------------
  */
 
-const SC_TABLE = "sales_counselors";
+const API_URL = import.meta.env.VITE_SALES_COUNSELOR_API_URL;
+// Set VITE_SALES_COUNSELOR_API_TOKEN in your .env file (and .env.example),
+// e.g. VITE_SALES_COUNSELOR_API_TOKEN=your-bearer-token-here
+const API_TOKEN = import.meta.env.VITE_SALES_COUNSELOR_API_TOKEN;
 
 // Static company info for the printed welcome letter — edit once here.
 const COMPANY = {
@@ -31,9 +38,16 @@ const COMPANY = {
   signatoryTitle: "President & CEO",
 };
 
+// Treats "1", "true", or anything starting with "y" (case-insensitive) as paid.
+const isPaidValue = (val) => {
+  const s = String(val ?? "").trim().toLowerCase();
+  return s === "1" || s === "true" || s.startsWith("y");
+};
+
 export default function SalesCounselorManagement() {
   const [counselors, setCounselors] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [agencyFilter, setAgencyFilter] = useState("All");
@@ -41,105 +55,63 @@ export default function SalesCounselorManagement() {
   const [sortOrder, setSortOrder] = useState("asc");
   const itemsPerPage = 10;
 
-  const [editModal, setEditModal] = useState(false);
-  const [editData, setEditData] = useState(null);
-  const [saving, setSaving] = useState(false);
   const [viewModal, setViewModal] = useState(false);
   const [viewData, setViewData] = useState(null);
-  const [addModal, setAddModal] = useState(false);
-  const [addData, setAddData] = useState({});
-  const [adding, setAdding] = useState(false);
   const [printData, setPrintData] = useState(null);
 
-  const [pictureFile, setPictureFile] = useState(null);
-  const [signatureFile, setSignatureFile] = useState(null);
-  const [editPictureFile, setEditPictureFile] = useState(null);
-  const [editSignatureFile, setEditSignatureFile] = useState(null);
-
-  useEffect(() => { fetchCounselors(); }, [sortOrder]);
+  useEffect(() => { fetchCounselors(); }, []);
 
   const fetchCounselors = async () => {
     setLoading(true);
-    const { data, error } = await supabaseEmployees
-      .from(SC_TABLE)
-      .select("*")
-      .order("date_released", { ascending: sortOrder === "asc" });
-    if (!error) setCounselors(data || []);
+    setErrorMsg(null);
+    try {
+      const res = await fetch(API_URL, {
+        headers: {
+          Authorization: `Bearer ${API_TOKEN}`,
+        },
+      });
+      if (!res.ok) throw new Error(`Request failed (${res.status})`);
+      const json = await res.json();
+      const rows = Array.isArray(json) ? json : (json.data || []);
+      // Normalize: API returns "validity_date" — UI expects "expiry_date"
+      const normalized = rows.map((r) => ({
+        ...r,
+        expiry_date: r.expiry_date ?? r.validity_date ?? null,
+      }));
+      setCounselors(normalized);
+    } catch (err) {
+      setErrorMsg(err.message || "Failed to load sales counselors.");
+      setCounselors([]);
+    }
     setLoading(false);
   };
 
-  const openEdit = (sc) => { setEditData({ ...sc }); setEditModal(true); };
-  const handleEditChange = (field, value) => setEditData(prev => ({ ...prev, [field]: value }));
+  // Client-side sort by date_released since the API doesn't support ?order params here.
+  const sorted = [...counselors].sort((a, b) => {
+    const da = a.date_released ? new Date(a.date_released).getTime() : 0;
+    const db = b.date_released ? new Date(b.date_released).getTime() : 0;
+    return sortOrder === "asc" ? da - db : db - da;
+  });
 
-  const uploadFile = async (file, folder) => {
-    const ext = file.name.split('.').pop();
-    const filename = `${folder}/${Date.now()}.${ext}`;
-    const { error } = await supabaseEmployees.storage.from('employee-file').upload(filename, file);
-    if (error) throw error;
-    const { data: urlData } = supabaseEmployees.storage.from('employee-file').getPublicUrl(filename);
-    return urlData.publicUrl;
-  };
-
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      let pictureUrl = editData.picture;
-      let signatureUrl = editData.signature;
-      if (editPictureFile) pictureUrl = await uploadFile(editPictureFile, 'sc_pictures');
-      if (editSignatureFile) signatureUrl = await uploadFile(editSignatureFile, 'sc_signatures');
-      const { error } = await supabaseEmployees.from(SC_TABLE).update({
-        full_name: editData.full_name, birthday: editData.birthday, address: editData.address,
-        expiry_date: editData.expiry_date, is_paid: editData.is_paid, or_date: editData.or_date,
-        picture: pictureUrl, signature: signatureUrl, date_released: editData.date_released,
-        position: editData.position, manager: editData.manager, agency: editData.agency,
-      }).eq("id_no", editData.id_no);
-      setSaving(false);
-      if (!error) { setEditModal(false); setEditPictureFile(null); setEditSignatureFile(null); fetchCounselors(); }
-      else alert("Error saving: " + error.message);
-    } catch (err) { alert("Upload error: " + err.message); setSaving(false); }
-  };
-
-  const handleAdd = async () => {
-    if (!addData.id_no || !addData.full_name) { alert("ID No. and Full Name are required."); return; }
-    setAdding(true);
-    try {
-      let pictureUrl = null, signatureUrl = null;
-      if (pictureFile) pictureUrl = await uploadFile(pictureFile, 'sc_pictures');
-      if (signatureFile) signatureUrl = await uploadFile(signatureFile, 'sc_signatures');
-      const { error } = await supabaseEmployees.from(SC_TABLE).insert({
-        ...addData, picture: pictureUrl, signature: signatureUrl, is_paid: addData.is_paid || 'No',
-      });
-      if (error) alert('Error adding sales counselor: ' + error.message);
-      else { setAddModal(false); setAddData({}); setPictureFile(null); setSignatureFile(null); fetchCounselors(); }
-    } catch (err) { alert('Upload error: ' + err.message); }
-    setAdding(false);
-  };
-
-  const filtered = counselors.filter((sc) => {
-    const matchSearch = sc.full_name?.toLowerCase().includes(search.toLowerCase()) || sc.id_no?.toLowerCase().includes(search.toLowerCase()) || sc.position?.toLowerCase().includes(search.toLowerCase());
-    const matchStatus = statusFilter === "All" || (statusFilter === "Paid" ? String(sc.is_paid).toLowerCase().startsWith("y") : !String(sc.is_paid).toLowerCase().startsWith("y"));
+  const filtered = sorted.filter((sc) => {
+    const q = search.toLowerCase();
+    const matchSearch =
+      sc.full_name?.toLowerCase().includes(q) ||
+      sc.id_no?.toLowerCase().includes(q) ||
+      sc.position?.toLowerCase().includes(q);
+    const matchStatus =
+      statusFilter === "All" ||
+      (statusFilter === "Paid" ? isPaidValue(sc.is_paid) : !isPaidValue(sc.is_paid));
     const matchAgency = agencyFilter === "All" || sc.agency === agencyFilter;
     return matchSearch && matchStatus && matchAgency;
   });
 
   const totalPages = Math.ceil(filtered.length / itemsPerPage);
   const paginated = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-  const agencies = ["All", ...new Set(counselors.map(sc => sc.agency).filter(Boolean).sort())];
+  const agencies = ["All", ...new Set(counselors.map((sc) => sc.agency).filter(Boolean).sort())];
   const total = counselors.length;
-  const paid = counselors.filter((sc) => String(sc.is_paid).toLowerCase().startsWith("y")).length;
+  const paid = counselors.filter((sc) => isPaidValue(sc.is_paid)).length;
   const unpaid = total - paid;
-
-  const inputStyle = { padding: "10px 14px", border: "1px solid rgba(1,63,153,0.15)", borderRadius: 8, fontSize: 13, color: "#0b1a3b", outline: "none", fontFamily: "'Poppins', sans-serif", width: "100%", boxSizing: "border-box", background: "#fafcff" };
-  const fieldStyle = { display: "flex", flexDirection: "column", gap: 6 };
-  const labelStyle = { fontSize: 11, fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.8 };
-
-  const SectionHeader = ({ title, icon }) => (
-    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20, marginTop: 8 }}>
-      <div style={{ width: 32, height: 32, borderRadius: 8, background: "linear-gradient(135deg, #013F99, #4CB1E9)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{icon}</div>
-      <div style={{ fontSize: 13, fontWeight: 700, color: "#0b1a3b", fontFamily: "'Montserrat', sans-serif" }}>{title}</div>
-      <div style={{ flex: 1, height: 1, background: "rgba(1,63,153,0.1)", marginLeft: 8 }} />
-    </div>
-  );
 
   return (
     <div>
@@ -148,7 +120,7 @@ export default function SalesCounselorManagement() {
       <div className="no-print">
         <div style={{ marginBottom: 28 }}>
           <h1 style={{ fontSize: 22, fontWeight: 700, color: "#0b1a3b", margin: 0, fontFamily: "'Montserrat', sans-serif" }}>Sales Counselor Management</h1>
-          <p style={{ fontSize: 13, color: "#64748b", margin: "4px 0 0" }}>Manage sales counselor records</p>
+          <p style={{ fontSize: 13, color: "#64748b", margin: "4px 0 0" }}>View sales counselor records</p>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20, marginBottom: 28 }}>
@@ -194,15 +166,18 @@ export default function SalesCounselorManagement() {
               </svg>
               {sortOrder === "asc" ? "Oldest First" : "Newest First"}
             </button>
-            <button onClick={() => setAddModal(true)}
+
+            <button onClick={fetchCounselors}
               style={{ padding: "9px 18px", borderRadius: 10, border: "none", background: "linear-gradient(90deg, #013F99, #4CB1E9)", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "'Poppins', sans-serif", display: "flex", alignItems: "center", gap: 6 }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              Add Sales Counselor
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+              Refresh
             </button>
           </div>
 
           {loading ? (
             <div style={{ padding: 40, textAlign: "center", color: "#94a3b8", fontSize: 13 }}>Loading sales counselors...</div>
+          ) : errorMsg ? (
+            <div style={{ padding: 40, textAlign: "center", color: "#dc2626", fontSize: 13 }}>{errorMsg}</div>
           ) : (
             <>
               <div style={{ overflowX: "auto" }}>
@@ -219,7 +194,7 @@ export default function SalesCounselorManagement() {
                       <tr><td colSpan={6} style={{ padding: 40, textAlign: "center", color: "#94a3b8" }}>No sales counselors found.</td></tr>
                     ) : (
                       paginated.map((sc, i) => {
-                        const isPaid = String(sc.is_paid).toLowerCase().startsWith("y");
+                        const paidRow = isPaidValue(sc.is_paid);
                         return (
                           <tr key={sc.id_no} style={{ borderBottom: "1px solid rgba(1,63,153,0.05)", background: i % 2 === 0 ? "#fff" : "#fafcff", transition: "background 0.15s" }}
                             onMouseEnter={e => e.currentTarget.style.background = "rgba(1,63,153,0.04)"}
@@ -229,11 +204,10 @@ export default function SalesCounselorManagement() {
                             <td style={{ padding: "12px 16px", color: "#64748b" }}>{sc.position || "—"}</td>
                             <td style={{ padding: "12px 16px", color: "#64748b" }}>{sc.agency || "—"}</td>
                             <td style={{ padding: "12px 16px" }}>
-                              <span style={{ padding: "4px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600, background: isPaid ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)", color: isPaid ? "#16a34a" : "#dc2626" }}>{isPaid ? "Paid" : "Unpaid"}</span>
+                              <span style={{ padding: "4px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600, background: paidRow ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)", color: paidRow ? "#16a34a" : "#dc2626" }}>{paidRow ? "Paid" : "Unpaid"}</span>
                             </td>
                             <td style={{ padding: "12px 16px" }}>
                               <div style={{ display: "flex", gap: 8 }}>
-                                <button onClick={() => openEdit(sc)} style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid rgba(1,63,153,0.2)", background: "#fff", color: "#013F99", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>Edit</button>
                                 <button onClick={() => { setViewData(sc); setViewModal(true); }} style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid rgba(76,177,233,0.3)", background: "#fff", color: "#4CB1E9", fontSize: 11, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
                                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                                   View
@@ -271,80 +245,6 @@ export default function SalesCounselorManagement() {
           )}
         </div>
 
-        {/* ADD MODAL */}
-        {addModal && (
-          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "flex-start", justifyContent: "center", zIndex: 1000, padding: "20px", overflowY: "auto" }}>
-            <div style={{ background: "#fff", borderRadius: 20, width: "95%", maxWidth: 900, maxHeight: "90vh", overflowY: "auto", overflowX: "hidden", padding: "36px 40px", boxSizing: "border-box", margin: "20px auto" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                <div>
-                  <h2 style={{ fontSize: 20, fontWeight: 700, color: "#0b1a3b", margin: 0, fontFamily: "'Montserrat', sans-serif" }}>Add Sales Counselor</h2>
-                  <p style={{ fontSize: 12, color: "#64748b", margin: "4px 0 0" }}>ID No. is required and must be unique</p>
-                </div>
-                <button onClick={() => setAddModal(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b" }}>
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                </button>
-              </div>
-              <div style={{ height: 3, background: "linear-gradient(90deg, #013F99, #4CB1E9, #F3CF47)", borderRadius: 2, marginBottom: 32 }} />
-
-              <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
-                <div>
-                  <SectionHeader title="Basic Information" icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>} />
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
-                    <div style={fieldStyle}><label style={labelStyle}>ID No.</label><input type="text" value={addData.id_no || ""} onChange={(e) => setAddData(prev => ({ ...prev, id_no: e.target.value }))} style={inputStyle} placeholder="e.g. M-SC-0001" /></div>
-                    <div style={fieldStyle}><label style={labelStyle}>Full Name</label><input type="text" value={addData.full_name || ""} onChange={(e) => setAddData(prev => ({ ...prev, full_name: e.target.value }))} style={inputStyle} /></div>
-                    <div style={fieldStyle}><label style={labelStyle}>Birthday</label><input type="date" value={addData.birthday || ""} onChange={(e) => setAddData(prev => ({ ...prev, birthday: e.target.value }))} style={inputStyle} /></div>
-                  </div>
-                </div>
-
-                <div>
-                  <SectionHeader title="Assignment" icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>} />
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
-                    <div style={fieldStyle}><label style={labelStyle}>Position</label><input type="text" value={addData.position || ""} onChange={(e) => setAddData(prev => ({ ...prev, position: e.target.value }))} style={inputStyle} /></div>
-                    <div style={fieldStyle}><label style={labelStyle}>Agency</label><input type="text" value={addData.agency || ""} onChange={(e) => setAddData(prev => ({ ...prev, agency: e.target.value }))} style={inputStyle} /></div>
-                    <div style={fieldStyle}><label style={labelStyle}>Manager</label><input type="text" value={addData.manager || ""} onChange={(e) => setAddData(prev => ({ ...prev, manager: e.target.value }))} style={inputStyle} /></div>
-                  </div>
-                  <div style={{ gridColumn: "1 / -1", ...fieldStyle, marginTop: 16 }}><label style={labelStyle}>Address</label><input type="text" value={addData.address || ""} onChange={(e) => setAddData(prev => ({ ...prev, address: e.target.value }))} style={inputStyle} /></div>
-                </div>
-
-                <div>
-                  <SectionHeader title="ID & Payment" icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>} />
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 16 }}>
-                    <div style={fieldStyle}><label style={labelStyle}>Expiry Date</label><input type="date" value={addData.expiry_date || ""} onChange={(e) => setAddData(prev => ({ ...prev, expiry_date: e.target.value }))} style={inputStyle} /></div>
-                    <div style={fieldStyle}><label style={labelStyle}>OR Date</label><input type="date" value={addData.or_date || ""} onChange={(e) => setAddData(prev => ({ ...prev, or_date: e.target.value }))} style={inputStyle} /></div>
-                    <div style={fieldStyle}><label style={labelStyle}>Date Released</label><input type="date" value={addData.date_released || ""} onChange={(e) => setAddData(prev => ({ ...prev, date_released: e.target.value }))} style={inputStyle} /></div>
-                    <div style={fieldStyle}><label style={labelStyle}>Payment Status</label>
-                      <select value={addData.is_paid || "No"} onChange={(e) => setAddData(prev => ({ ...prev, is_paid: e.target.value }))} style={inputStyle}>
-                        <option value="Yes">Paid</option><option value="No">Unpaid</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <SectionHeader title="Attachments" icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>} />
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                      <label style={labelStyle}>Sales Counselor Picture</label>
-                      <input type="file" accept="image/*" onChange={(e) => setPictureFile(e.target.files[0])} style={{ padding: "8px 12px", border: "1px solid rgba(1,63,153,0.15)", borderRadius: 8, fontSize: 13, fontFamily: "'Poppins', sans-serif", width: "100%", boxSizing: "border-box" }} />
-                      {pictureFile && <div style={{ display: "flex", alignItems: "center", gap: 12 }}><img src={URL.createObjectURL(pictureFile)} alt="preview" style={{ width: 80, height: 80, objectFit: "cover", borderRadius: 10, border: "2px solid rgba(1,63,153,0.15)" }} /><div><div style={{ fontSize: 12, fontWeight: 600, color: "#0b1a3b" }}>{pictureFile.name}</div><div style={{ fontSize: 11, color: "#64748b" }}>{(pictureFile.size / 1024).toFixed(1)} KB</div></div></div>}
-                    </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                      <label style={labelStyle}>Signature</label>
-                      <input type="file" accept="image/*" onChange={(e) => setSignatureFile(e.target.files[0])} style={{ padding: "8px 12px", border: "1px solid rgba(1,63,153,0.15)", borderRadius: 8, fontSize: 13, fontFamily: "'Poppins', sans-serif", width: "100%", boxSizing: "border-box" }} />
-                      {signatureFile && <div style={{ display: "flex", alignItems: "center", gap: 12 }}><img src={URL.createObjectURL(signatureFile)} alt="preview" style={{ width: 80, height: 80, objectFit: "contain", borderRadius: 10, border: "2px solid rgba(1,63,153,0.15)", background: "#f6fbfe" }} /><div><div style={{ fontSize: 12, fontWeight: 600, color: "#0b1a3b" }}>{signatureFile.name}</div><div style={{ fontSize: 11, color: "#64748b" }}>{(signatureFile.size / 1024).toFixed(1)} KB</div></div></div>}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div style={{ display: "flex", gap: 12, justifyContent: "flex-end", marginTop: 36, paddingTop: 24, borderTop: "1px solid rgba(1,63,153,0.08)" }}>
-                <button onClick={() => setAddModal(false)} style={{ padding: "11px 28px", borderRadius: 10, border: "1px solid rgba(1,63,153,0.15)", background: "#fff", color: "#64748b", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'Poppins', sans-serif" }}>Cancel</button>
-                <button onClick={handleAdd} disabled={adding} style={{ padding: "11px 28px", borderRadius: 10, border: "none", background: adding ? "#94a3b8" : "linear-gradient(90deg, #013F99, #4CB1E9)", color: "#fff", fontSize: 13, fontWeight: 600, cursor: adding ? "not-allowed" : "pointer", fontFamily: "'Poppins', sans-serif" }}>{adding ? "Saving..." : "Add Sales Counselor"}</button>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* VIEW MODAL */}
         {viewModal && viewData && (
           <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "flex-start", justifyContent: "center", zIndex: 1000, padding: 20, overflowY: "auto" }}>
@@ -361,19 +261,15 @@ export default function SalesCounselorManagement() {
               <div style={{ height: 3, background: "linear-gradient(90deg, #013F99, #4CB1E9, #F3CF47)", borderRadius: 2, marginBottom: 24 }} />
 
               <div style={{ display: "flex", alignItems: "center", gap: 20, marginBottom: 24, padding: "16px 20px", background: "#f6fbfe", borderRadius: 14, border: "1px solid rgba(1,63,153,0.06)" }}>
-                {viewData.picture ? (
-                  <img src={viewData.picture} alt="sales counselor" style={{ width: 100, height: 120, objectFit: "cover", objectPosition: "center top", borderRadius: 10, border: "3px solid rgba(1,63,153,0.15)", flexShrink: 0 }} />
-                ) : (
-                  <div style={{ width: 100, height: 120, borderRadius: 10, background: "linear-gradient(135deg, #013F99, #4CB1E9)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    <span style={{ fontSize: 28, fontWeight: 700, color: "#fff" }}>{viewData.full_name?.[0]?.toUpperCase() || "?"}</span>
-                  </div>
-                )}
+                <div style={{ width: 60, height: 60, borderRadius: "50%", background: "linear-gradient(135deg, #013F99, #4CB1E9)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <span style={{ fontSize: 22, fontWeight: 700, color: "#fff" }}>{viewData.full_name?.[0]?.toUpperCase() || "?"}</span>
+                </div>
                 <div>
                   <div style={{ fontSize: 18, fontWeight: 700, color: "#0b1a3b", fontFamily: "'Montserrat', sans-serif" }}>{viewData.full_name}</div>
                   <div style={{ fontSize: 13, color: "#4CB1E9", fontWeight: 500, marginTop: 2 }}>{viewData.position || "—"}</div>
                   <div style={{ display: "flex", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
                     {viewData.agency && <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, background: "rgba(1,63,153,0.08)", color: "#013F99", fontWeight: 600 }}>{viewData.agency}</span>}
-                    <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, background: String(viewData.is_paid).toLowerCase().startsWith("y") ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)", color: String(viewData.is_paid).toLowerCase().startsWith("y") ? "#16a34a" : "#dc2626", fontWeight: 600 }}>{String(viewData.is_paid).toLowerCase().startsWith("y") ? "Paid" : "Unpaid"}</span>
+                    <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, background: isPaidValue(viewData.is_paid) ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)", color: isPaidValue(viewData.is_paid) ? "#16a34a" : "#dc2626", fontWeight: 600 }}>{isPaidValue(viewData.is_paid) ? "Paid" : "Unpaid"}</span>
                   </div>
                 </div>
               </div>
@@ -393,113 +289,10 @@ export default function SalesCounselorManagement() {
                   <div style={{ fontSize: 10, fontWeight: 700, color: "#4CB1E9", textTransform: "uppercase", letterSpacing: 1 }}>Address</div>
                   <div style={{ fontSize: 13, color: "#0b1a3b", fontWeight: 500 }}>{viewData.address || "—"}</div>
                 </div>
-
-                {viewData.signature && (
-                  <div style={{ gridColumn: "1 / -1", display: "flex", flexDirection: "column", gap: 4, padding: "12px 16px", background: "#f6fbfe", borderRadius: 10, border: "1px solid rgba(1,63,153,0.06)" }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: "#4CB1E9", textTransform: "uppercase", letterSpacing: 1 }}>Signature</div>
-                    <img src={viewData.signature} alt="signature" style={{ width: 160, height: 80, objectFit: "contain", borderRadius: 10, border: "2px solid rgba(1,63,153,0.15)", background: "#fff", marginTop: 8 }} />
-                  </div>
-                )}
               </div>
 
               <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 24 }}>
                 <button onClick={() => setViewModal(false)} style={{ padding: "10px 24px", borderRadius: 10, border: "1px solid rgba(1,63,153,0.15)", background: "#fff", color: "#64748b", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'Poppins', sans-serif" }}>Close</button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* EDIT MODAL */}
-        {editModal && editData && (
-          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "flex-start", justifyContent: "center", zIndex: 1000, padding: 20, overflowY: "auto" }}>
-            <div style={{ background: "#fff", borderRadius: 20, width: "95%", maxWidth: 900, overflowX: "hidden", padding: 32, boxSizing: "border-box", margin: "20px auto" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                <div>
-                  <h2 style={{ fontSize: 18, fontWeight: 700, color: "#0b1a3b", margin: 0, fontFamily: "'Montserrat', sans-serif" }}>Edit Sales Counselor</h2>
-                  <p style={{ fontSize: 12, color: "#64748b", margin: "4px 0 0" }}>ID No.: {editData.id_no}</p>
-                </div>
-                <button onClick={() => setEditModal(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b" }}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                </button>
-              </div>
-              <div style={{ height: 3, background: "linear-gradient(90deg, #013F99, #4CB1E9, #F3CF47)", borderRadius: 2, marginBottom: 24 }} />
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
-                {[
-                  ["Full Name","full_name",null], ["Birthday","birthday","date"], ["Position","position",null],
-                  ["Agency","agency",null], ["Manager","manager",null], ["Expiry Date","expiry_date","date"],
-                  ["OR Date","or_date","date"], ["Date Released","date_released","date"],
-                ].map(([label, field, type]) => (
-                  <div key={field} style={fieldStyle}>
-                    <label style={labelStyle}>{label}</label>
-                    <input type={type || "text"} value={editData[field] || ""} onChange={(e) => handleEditChange(field, e.target.value)} style={inputStyle} />
-                  </div>
-                ))}
-
-                <div style={{ gridColumn: "1 / -1", ...fieldStyle }}>
-                  <label style={labelStyle}>Address</label>
-                  <input type="text" value={editData.address || ""} onChange={(e) => handleEditChange("address", e.target.value)} style={inputStyle} />
-                </div>
-
-                <div style={{ gridColumn: "1 / -1", ...fieldStyle }}>
-                  <label style={labelStyle}>Payment Status</label>
-                  <select value={editData.is_paid || "No"} onChange={(e) => handleEditChange("is_paid", e.target.value)} style={inputStyle}>
-                    <option value="Yes">Paid</option><option value="No">Unpaid</option>
-                  </select>
-                </div>
-
-                <div style={{ gridColumn: "1 / -1", ...fieldStyle }}>
-                  <label style={labelStyle}>Picture</label>
-                  {(editData.picture && !editPictureFile) && (
-                    <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 8 }}>
-                      <img src={editData.picture} alt="current" style={{ width: 80, height: 80, objectFit: "cover", borderRadius: 10, border: "2px solid rgba(1,63,153,0.15)" }} />
-                      <button type="button" onClick={() => handleEditChange("picture", null)}
-                        style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 6, width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                      </button>
-                    </div>
-                  )}
-                  {editPictureFile && (
-                    <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 8 }}>
-                      <img src={URL.createObjectURL(editPictureFile)} alt="preview" style={{ width: 80, height: 80, objectFit: "cover", borderRadius: 10, border: "2px solid rgba(1,63,153,0.15)" }} />
-                      <button type="button" onClick={() => setEditPictureFile(null)}
-                        style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 6, width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                      </button>
-                    </div>
-                  )}
-                  <input type="file" accept="image/*" onChange={(e) => setEditPictureFile(e.target.files[0])} style={{ padding: "8px 12px", border: "1px solid rgba(1,63,153,0.15)", borderRadius: 8, fontSize: 13, fontFamily: "'Poppins', sans-serif", width: "100%", boxSizing: "border-box" }} />
-                  <p style={{ fontSize: 11, color: "#94a3b8", margin: 0 }}>Leave blank to keep current picture</p>
-                </div>
-
-                <div style={{ gridColumn: "1 / -1", ...fieldStyle }}>
-                  <label style={labelStyle}>Signature</label>
-                  {(editData.signature && !editSignatureFile) && (
-                    <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 8 }}>
-                      <img src={editData.signature} alt="current" style={{ width: 120, height: 60, objectFit: "contain", borderRadius: 10, border: "2px solid rgba(1,63,153,0.15)", background: "#f6fbfe" }} />
-                      <button type="button" onClick={() => handleEditChange("signature", null)}
-                        style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 6, width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                      </button>
-                    </div>
-                  )}
-                  {editSignatureFile && (
-                    <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 8 }}>
-                      <img src={URL.createObjectURL(editSignatureFile)} alt="preview" style={{ width: 120, height: 60, objectFit: "contain", borderRadius: 10, border: "2px solid rgba(1,63,153,0.15)", background: "#f6fbfe" }} />
-                      <button type="button" onClick={() => setEditSignatureFile(null)}
-                        style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 6, width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                      </button>
-                    </div>
-                  )}
-                  <input type="file" accept="image/*" onChange={(e) => setEditSignatureFile(e.target.files[0])} style={{ padding: "8px 12px", border: "1px solid rgba(1,63,153,0.15)", borderRadius: 8, fontSize: 13, fontFamily: "'Poppins', sans-serif", width: "100%", boxSizing: "border-box" }} />
-                  <p style={{ fontSize: 11, color: "#94a3b8", margin: 0 }}>Leave blank to keep current signature</p>
-                </div>
-              </div>
-
-              <div style={{ display: "flex", gap: 12, justifyContent: "flex-end", marginTop: 24, paddingTop: 20, borderTop: "1px solid rgba(1,63,153,0.08)" }}>
-                <button onClick={() => setEditModal(false)} style={{ padding: "10px 24px", borderRadius: 10, border: "1px solid rgba(1,63,153,0.15)", background: "#fff", color: "#64748b", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'Poppins', sans-serif" }}>Cancel</button>
-                <button onClick={handleSave} disabled={saving} style={{ padding: "10px 24px", borderRadius: 10, border: "none", background: saving ? "#94a3b8" : "linear-gradient(90deg, #013F99, #4CB1E9)", color: "#fff", fontSize: 13, fontWeight: 600, cursor: saving ? "not-allowed" : "pointer", fontFamily: "'Poppins', sans-serif" }}>{saving ? "Saving..." : "Save Changes"}</button>
               </div>
             </div>
           </div>
@@ -544,11 +337,7 @@ function SCLetter({ sc }) {
 
         <div style={{ position: "absolute", top: "12mm", left: "8mm", color: "#fff", fontSize: "24pt", fontWeight: 800 }}>Life Plan</div>
 
-        {sc.picture && (
-          <img src={sc.picture} alt={sc.full_name} style={{ position: "absolute", top: "34mm", right: "8mm", width: "22mm", height: "26mm", objectFit: "cover", border: "2px solid #fff", borderRadius: 4 }} />
-        )}
-
-        <div style={{ position: "absolute", left: "8mm", bottom: "5mm", right: "60mm", color: "#fff" }}>
+        <div style={{ position: "absolute", left: "8mm", bottom: "5mm", right: "8mm", color: "#fff" }}>
           <div style={{ color: "#a7e0ff", fontSize: "10pt", marginBottom: 2 }}>{sc.agency}</div>
           {sc.id_no && <div style={{ color: "#F3CF47", fontWeight: 700, fontSize: "11pt", marginBottom: 2 }}>SALES COUNSELOR CODE: {sc.id_no}</div>}
           <div style={{ fontSize: "12pt", fontWeight: 600, lineHeight: 1.3 }}>{sc.full_name}</div>
@@ -581,13 +370,9 @@ function SCLetter({ sc }) {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: "16mm" }}>
           <div>
             <div style={{ fontWeight: 700, marginBottom: 4 }}>Warm regards,</div>
-            {sc.signature ? (
-              <img src={sc.signature} alt="signature" style={{ height: 60, objectFit: "contain" }} />
-            ) : (
-              <div style={{ fontFamily: "'Brush Script MT', cursive", fontSize: "26pt", color: "#013F99", lineHeight: 1 }}>
-                {COMPANY.signatoryName.split(" ").map(w => w[0]).join("")}
-              </div>
-            )}
+            <div style={{ fontFamily: "'Brush Script MT', cursive", fontSize: "26pt", color: "#013F99", lineHeight: 1 }}>
+              {COMPANY.signatoryName.split(" ").map(w => w[0]).join("")}
+            </div>
             <div style={{ color: "#013F99", fontWeight: 700, marginTop: 4 }}>{COMPANY.signatoryName}</div>
             <div style={{ fontWeight: 700 }}>{COMPANY.signatoryTitle}</div>
           </div>

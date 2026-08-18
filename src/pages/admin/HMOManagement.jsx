@@ -8,9 +8,10 @@ export default function HMOManagement() {
   const [dependentCounts, setDependentCounts] = useState({});
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("All");
+  const [statusFilter, setStatusFilter] = useState("All");       // Enrolled / Not Enrolled
+  const [employeeStatusFilter, setEmployeeStatusFilter] = useState("All");  // Active / In-active
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const itemsPerPage = 100;
 
   // Main modal
   const [modalOpen, setModalOpen] = useState(false);
@@ -378,14 +379,15 @@ const handleSaveDependent = async () => {
 };
 
   // ── FILTERS / PAGINATION ─────────────────────────
-  const filtered = employees.filter((emp) => {
+const filtered = employees.filter((emp) => {
     const matchSearch = emp.full_name?.toLowerCase().includes(search.toLowerCase()) ||
       emp.id?.toLowerCase().includes(search.toLowerCase()) ||
       membershipMap[emp.id]?.hmo_member_id?.toLowerCase().includes(search.toLowerCase());
     const matchStatus = statusFilter === "All" ||
       (statusFilter === "Enrolled" && membershipMap[emp.id]) ||
       (statusFilter === "Not Enrolled" && !membershipMap[emp.id]);
-    return matchSearch && matchStatus;
+    const matchEmployeeStatus = employeeStatusFilter === "All" || emp.status === employeeStatusFilter;
+    return matchSearch && matchStatus && matchEmployeeStatus;
   });
 
   const totalPages = Math.ceil(filtered.length / itemsPerPage);
@@ -426,9 +428,25 @@ const handleSaveDependent = async () => {
             <input placeholder="Search by name, ID, or Member ID..." value={search} onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
               style={{ width: "100%", boxSizing: "border-box", padding: "10px 16px 10px 36px", border: "1px solid rgba(1,63,153,0.12)", borderRadius: 10, fontSize: 13, color: "#0b1a3b", outline: "none", fontFamily: "'Poppins', sans-serif" }} />
           </div>
-          {["All", "Enrolled", "Not Enrolled"].map((s) => (
+<button onClick={() => { setStatusFilter("All"); setEmployeeStatusFilter("All"); setCurrentPage(1); }}
+            style={{ padding: "9px 18px", borderRadius: 10, border: "1px solid rgba(1,63,153,0.12)", background: (statusFilter === "All" && employeeStatusFilter === "All") ? "#013F99" : "#fff", color: (statusFilter === "All" && employeeStatusFilter === "All") ? "#fff" : "#64748b", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "'Poppins', sans-serif" }}>
+            All
+          </button>
+
+          <div style={{ width: 1, height: 24, background: "rgba(1,63,153,0.12)" }} />
+
+          {["Enrolled", "Not Enrolled"].map((s) => (
             <button key={s} onClick={() => { setStatusFilter(s); setCurrentPage(1); }}
               style={{ padding: "9px 18px", borderRadius: 10, border: "1px solid rgba(1,63,153,0.12)", background: statusFilter === s ? "#013F99" : "#fff", color: statusFilter === s ? "#fff" : "#64748b", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "'Poppins', sans-serif" }}>
+              {s}
+            </button>
+          ))}
+
+          <div style={{ width: 1, height: 24, background: "rgba(1,63,153,0.12)" }} />
+
+          {["Active", "In-active"].map((s) => (
+            <button key={s} onClick={() => { setEmployeeStatusFilter(s); setCurrentPage(1); }}
+              style={{ padding: "9px 18px", borderRadius: 10, border: "1px solid rgba(1,63,153,0.12)", background: employeeStatusFilter === s ? "#013F99" : "#fff", color: employeeStatusFilter === s ? "#fff" : "#64748b", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "'Poppins', sans-serif" }}>
               {s}
             </button>
           ))}
