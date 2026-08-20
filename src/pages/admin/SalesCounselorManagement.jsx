@@ -1,26 +1,10 @@
 import { useState, useEffect } from "react";
+import headerWave from '../../assets/header-wave.png';
+import cclpiLogo from '../../assets/cclpi-logo.jpg';
+import signatureImg from '../../assets/signature.png';
+import angelicaLogo from '../../assets/angelica.png';
 
-/**
- * Sales Counselor Management (Display-Only)
- * ---------------------------------------------------------------
- * Styled to match HRManagement.jsx exactly (same colors, fonts,
- * card/table/modal patterns). No sidebar in this file — it renders
- * inside AdminDashboard's <Outlet />, same as HRManagement does.
- *
- * DATA SOURCE: Legacy REST API (read-only, GET only)
- *   https://sys.cclpi.com.ph/api/salesCounselors
- *
- * This version is VIEW-ONLY:
- *   - No Add / Edit / Upload
- *   - No picture / signature fields (not usable from this API)
- *   - List, search, filter, sort, pagination, view detail, print letter
- *
- * API fields used:
- *   id_no, full_name, birthday, address, validity_date, is_paid,
- *   or_date, date_released, position, manager, agency
- * (validity_date from the API is displayed as "Expiry Date" in the UI)
- * ---------------------------------------------------------------
- */
+
 
 const API_URL = import.meta.env.VITE_SALES_COUNSELOR_API_URL;
 // Set VITE_SALES_COUNSELOR_API_TOKEN in your .env file (and .env.example),
@@ -39,9 +23,20 @@ const COMPANY = {
 };
 
 // Treats "1", "true", or anything starting with "y" (case-insensitive) as paid.
+// (Kept for reference in the profile detail grid — no longer drives the status badge.)
 const isPaidValue = (val) => {
   const s = String(val ?? "").trim().toLowerCase();
   return s === "1" || s === "true" || s.startsWith("y");
+};
+
+// Determines Active/Expired based on the counselor's validity/expiry date.
+const isActiveValue = (expiryDateStr) => {
+  if (!expiryDateStr) return false; // no date on record → treat as Expired
+  const expiry = new Date(expiryDateStr);
+  if (isNaN(expiry.getTime())) return false; // unparseable date → treat as Expired
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return expiry.getTime() >= today.getTime();
 };
 
 export default function SalesCounselorManagement() {
@@ -101,7 +96,7 @@ export default function SalesCounselorManagement() {
       sc.position?.toLowerCase().includes(q);
     const matchStatus =
       statusFilter === "All" ||
-      (statusFilter === "Paid" ? isPaidValue(sc.is_paid) : !isPaidValue(sc.is_paid));
+      (statusFilter === "Active" ? isActiveValue(sc.expiry_date) : !isActiveValue(sc.expiry_date));
     const matchAgency = agencyFilter === "All" || sc.agency === agencyFilter;
     return matchSearch && matchStatus && matchAgency;
   });
@@ -110,8 +105,8 @@ export default function SalesCounselorManagement() {
   const paginated = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
   const agencies = ["All", ...new Set(counselors.map((sc) => sc.agency).filter(Boolean).sort())];
   const total = counselors.length;
-  const paid = counselors.filter((sc) => isPaidValue(sc.is_paid)).length;
-  const unpaid = total - paid;
+  const active = counselors.filter((sc) => isActiveValue(sc.expiry_date)).length;
+  const expired = total - active;
 
   return (
     <div>
@@ -124,7 +119,7 @@ export default function SalesCounselorManagement() {
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20, marginBottom: 28 }}>
-          {[{ label: "Total Sales Counselors", value: total, color: "#013F99" }, { label: "Paid", value: paid, color: "#22c55e" }, { label: "Unpaid", value: unpaid, color: "#ef4444" }].map((card) => (
+          {[{ label: "Total Sales Counselors", value: total, color: "#013F99" }, { label: "Active", value: active, color: "#22c55e" }, { label: "Expired", value: expired, color: "#ef4444" }].map((card) => (
             <div key={card.label} style={{ background: "#fff", borderRadius: 16, padding: "24px", border: "1px solid rgba(1,63,153,0.08)", borderLeft: `4px solid ${card.color}` }}>
               <div style={{ fontSize: 12, color: "#64748b", fontWeight: 600, textTransform: "uppercase", letterSpacing: 1 }}>{card.label}</div>
               <div style={{ fontSize: 32, fontWeight: 700, color: card.color, marginTop: 8 }}>{card.value}</div>
@@ -142,7 +137,7 @@ export default function SalesCounselorManagement() {
                 style={{ width: "100%", boxSizing: "border-box", padding: "10px 16px 10px 36px", border: "1px solid rgba(1,63,153,0.12)", borderRadius: 10, fontSize: 13, color: "#0b1a3b", outline: "none", fontFamily: "'Poppins', sans-serif" }} />
             </div>
 
-            {["All", "Paid", "Unpaid"].map((s) => (
+            {["All", "Active", "Expired"].map((s) => (
               <button key={s} onClick={() => { setStatusFilter(s); setCurrentPage(1); }}
                 style={{ padding: "9px 18px", borderRadius: 10, border: "1px solid rgba(1,63,153,0.12)", background: statusFilter === s ? "#013F99" : "#fff", color: statusFilter === s ? "#fff" : "#64748b", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "'Poppins', sans-serif" }}>
                 {s}
@@ -184,17 +179,17 @@ export default function SalesCounselorManagement() {
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                   <thead>
                     <tr style={{ background: "#f6fbfe" }}>
-                      {["ID No.", "Name", "Position", "Agency", "Status", "Actions"].map((h) => (
+                      {["ID No.", "Name", "Position", "Agency", "Expiration Date", "Status", "Actions"].map((h) => (
                         <th key={h} style={{ padding: "12px 16px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.8, borderBottom: "1px solid rgba(1,63,153,0.08)" }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {filtered.length === 0 ? (
-                      <tr><td colSpan={6} style={{ padding: 40, textAlign: "center", color: "#94a3b8" }}>No sales counselors found.</td></tr>
+                      <tr><td colSpan={7} style={{ padding: 40, textAlign: "center", color: "#94a3b8" }}>No sales counselors found.</td></tr>
                     ) : (
                       paginated.map((sc, i) => {
-                        const paidRow = isPaidValue(sc.is_paid);
+                        const activeRow = isActiveValue(sc.expiry_date);
                         return (
                           <tr key={sc.id_no} style={{ borderBottom: "1px solid rgba(1,63,153,0.05)", background: i % 2 === 0 ? "#fff" : "#fafcff", transition: "background 0.15s" }}
                             onMouseEnter={e => e.currentTarget.style.background = "rgba(1,63,153,0.04)"}
@@ -203,8 +198,9 @@ export default function SalesCounselorManagement() {
                             <td style={{ padding: "12px 16px", color: "#0b1a3b", fontWeight: 500 }}>{sc.full_name}</td>
                             <td style={{ padding: "12px 16px", color: "#64748b" }}>{sc.position || "—"}</td>
                             <td style={{ padding: "12px 16px", color: "#64748b" }}>{sc.agency || "—"}</td>
+                            <td style={{ padding: "12px 16px", color: "#64748b" }}>{sc.expiry_date || "—"}</td>
                             <td style={{ padding: "12px 16px" }}>
-                              <span style={{ padding: "4px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600, background: paidRow ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)", color: paidRow ? "#16a34a" : "#dc2626" }}>{paidRow ? "Paid" : "Unpaid"}</span>
+                              <span style={{ padding: "4px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600, background: activeRow ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)", color: activeRow ? "#16a34a" : "#dc2626" }}>{activeRow ? "Active" : "Expired"}</span>
                             </td>
                             <td style={{ padding: "12px 16px" }}>
                               <div style={{ display: "flex", gap: 8 }}>
@@ -269,7 +265,7 @@ export default function SalesCounselorManagement() {
                   <div style={{ fontSize: 13, color: "#4CB1E9", fontWeight: 500, marginTop: 2 }}>{viewData.position || "—"}</div>
                   <div style={{ display: "flex", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
                     {viewData.agency && <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, background: "rgba(1,63,153,0.08)", color: "#013F99", fontWeight: 600 }}>{viewData.agency}</span>}
-                    <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, background: isPaidValue(viewData.is_paid) ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)", color: isPaidValue(viewData.is_paid) ? "#16a34a" : "#dc2626", fontWeight: 600 }}>{isPaidValue(viewData.is_paid) ? "Paid" : "Unpaid"}</span>
+                    <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, background: isActiveValue(viewData.expiry_date) ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)", color: isActiveValue(viewData.expiry_date) ? "#16a34a" : "#dc2626", fontWeight: 600 }}>{isActiveValue(viewData.expiry_date) ? "Active" : "Expired"}</span>
                   </div>
                 </div>
               </div>
@@ -319,15 +315,16 @@ function SCLetter({ sc }) {
   const firstName = sc.full_name?.split(" ")[0] || "";
   return (
     <div className="print-area" style={{ width: "210mm", minHeight: "297mm", background: "#fff", boxShadow: "0 2px 12px rgba(0,0,0,0.25)", display: "flex", flexDirection: "column", fontFamily: "'Poppins', sans-serif" }}>
-      <div style={{ position: "relative", height: "78mm", overflow: "hidden" }}>
-        <svg viewBox="0 0 850 300" preserveAspectRatio="none" style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}>
-          <rect width="850" height="300" fill="#013F99" />
-          <path d="M0,0 L850,0 L850,90 Q450,180 0,60 Z" fill="#4CB1E9" />
-          <path d="M0,120 L850,180 L850,300 L0,300 Z" fill="#013F99" />
-          <path d="M0,150 L850,210 L850,300 L0,300 Z" fill="#0b2f73" />
-        </svg>
+      <div style={{ position: "relative", height: "92mm", overflow: "hidden" }}>
+        {/* Real header wave graphic from the CCLPI letterhead template */}
+        <img
+          src={headerWave}
+          alt=""
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
+        />
 
-        <div style={{ position: "absolute", top: "6mm", right: "8mm", color: "#fff", fontSize: "9pt", lineHeight: 1.5, textAlign: "right" }}>
+        {/* Top-right company contact block */}
+        <div style={{ position: "absolute", top: "6mm", right: "8mm", color: "#fff", fontSize: "9pt", lineHeight: 1.5, textAlign: "right", right: "13mm"}}>
           <div>{COMPANY.addressLine1}</div>
           <div>{COMPANY.addressLine2}</div>
           <div style={{ fontWeight: 700 }}>{COMPANY.phone}</div>
@@ -335,18 +332,30 @@ function SCLetter({ sc }) {
           <div>{COMPANY.website}</div>
         </div>
 
-        <div style={{ position: "absolute", top: "12mm", left: "8mm", color: "#fff", fontSize: "24pt", fontWeight: 800 }}>Life Plan</div>
+        {/* Angelica Life Plan logo */}
+        <img
+          src={angelicaLogo}
+          alt="Angelica Life Plan"
+          style={{ position: "absolute", top: "16mm", left: "18mm", width: "70mm", height: "auto" }}
+        />
 
-        <div style={{ position: "absolute", left: "8mm", bottom: "5mm", right: "8mm", color: "#fff" }}>
-          <div style={{ color: "#a7e0ff", fontSize: "10pt", marginBottom: 2 }}>{sc.agency}</div>
-          {sc.id_no && <div style={{ color: "#F3CF47", fontWeight: 700, fontSize: "11pt", marginBottom: 2 }}>SALES COUNSELOR CODE: {sc.id_no}</div>}
-          <div style={{ fontSize: "12pt", fontWeight: 600, lineHeight: 1.3 }}>{sc.full_name}</div>
-          <div style={{ fontSize: "10.5pt", lineHeight: 1.3 }}>{sc.address}</div>
+        {/* Bottom-left counselor info block — stacked in normal flow so nothing overlaps */}
+        <div style={{ position: "absolute", left: "15mm", bottom: "15mm", right: "45mm", color: "#fff" }}>
+          <div style={{ color: "#5FC9F0", fontSize: "10pt", marginBottom: 3 }}>{sc.agency}</div>
+          {sc.id_no && (
+            <div style={{ fontSize: "11pt", fontWeight: 700, marginBottom: 3 }}>
+              <span style={{ color: "#F3CF47" }}>SALES COUNSELOR CODE:</span> {sc.id_no}
+            </div>
+          )}
+          <div style={{ fontSize: "12pt", fontWeight: 700, marginBottom: 3, lineHeight: 1.3 }}>{sc.full_name}</div>
+          <div style={{ fontSize: "10pt", lineHeight: 1.35, width: "85mm", wordWrap: "break-word", overflowWrap: "break-word" }}>{sc.address}
+          </div>
         </div>
       </div>
 
-      <div style={{ padding: "10mm 12mm 12mm", fontSize: "10.5pt", color: "#0b1a3b", lineHeight: 1.5 }}>
-        <p>Dear {firstName},</p>
+      <div style={{ padding: "10mm 15mm 12mm", fontSize: "10.5pt", color: "#0b1a3b", lineHeight: 1.5, textAlign: "justify" }}>
+        <p>Dear <b>{firstName}</b>,</p>
+        <br></br>
         <p>
           It is our pleasure to welcome you as Sales Counselor for Angelica Life Plan. For easier identification, we
           are sending you your new Sales Counselor Identification card. We are thrilled to have you with us.
@@ -359,6 +368,7 @@ function SCLetter({ sc }) {
           Sales Counselor, you become our partner in providing the Filipino people and serving them with the most
           affordable life plan, to help them secure future eventualities.
         </p>
+        <br></br>
         <p>If you have any question or would more information, please contact</p>
         <div style={{ margin: "10px 0 0 6mm", fontSize: "10.5pt" }}>
           <div><strong>Email:</strong> {COMPANY.email}</div>
@@ -370,16 +380,11 @@ function SCLetter({ sc }) {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: "16mm" }}>
           <div>
             <div style={{ fontWeight: 700, marginBottom: 4 }}>Warm regards,</div>
-            <div style={{ fontFamily: "'Brush Script MT', cursive", fontSize: "26pt", color: "#013F99", lineHeight: 1 }}>
-              {COMPANY.signatoryName.split(" ").map(w => w[0]).join("")}
-            </div>
-            <div style={{ color: "#013F99", fontWeight: 700, marginTop: 4 }}>{COMPANY.signatoryName}</div>
+            <img src={signatureImg} alt="Signature" style={{ height: "20mm", display: "block", marginBottom: 4 }} />
+            <div style={{ color: "#013F99", fontWeight: 700 }}>{COMPANY.signatoryName}</div>
             <div style={{ fontWeight: 700 }}>{COMPANY.signatoryTitle}</div>
           </div>
-          <div style={{ width: 70, height: 70, borderRadius: "50%", border: "3px solid #F3CF47", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "#013F99" }}>
-            <div style={{ fontWeight: 800, fontSize: 13 }}>CCLPI</div>
-            <div style={{ fontSize: 8, letterSpacing: 1 }}>PLANS</div>
-          </div>
+          <img src={cclpiLogo} alt="CCLPI Plans" style={{ width: "26mm", height: "auto", marginRight: "40mm" }} />
         </div>
       </div>
     </div>

@@ -37,6 +37,10 @@ import UserManagement from "@/pages/admin/UserManagement";
 import BoardOfDirectors from "@/pages/admin/BoardOfDirectors";
 import SalesCounselorManagement from "@/pages/admin/SalesCounselorManagement";
 import HMOManagement from "@/pages/admin/HMOManagement";
+import EventRSVP from "@/pages/admin/EventRSVP";
+import EventManagement from "@/pages/admin/EventManagement";
+import DigitalCard from "@/pages/admin/DigitalCard";
+import CardManagement from "@/pages/admin/CardManagement";
 
 export default function App() {
   return (
@@ -53,8 +57,13 @@ export default function App() {
             <Route path="board-of-directors" element={<BoardOfDirectors />} />
             <Route path="sales-counselors" element={<SalesCounselorManagement />} />
             <Route path="/admin/hmo" element={<HMOManagement />} />
+            <Route path="/admin/events" element={<EventManagement />} />
+            <Route path="/admin/cards" element={<CardManagement />} />
           </Route>
-          
+
+           {/* Public links */}
+          <Route path="/rsvp/:slug" element={<EventRSVP />} />
+          <Route path="/card/:slug" element={<DigitalCard />} />
 
           <Route path="/unauthorized" element={
             <div className="flex h-screen items-center justify-center">

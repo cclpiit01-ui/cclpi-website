@@ -18,6 +18,7 @@
     "html-to-image": "^1.11.13",
     "lucide-react": "^0.563.0",
     "mapbox-gl": "^3.18.1",
+    "qrcode": "^1.5.4",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-facebook": "^10.0.1",
