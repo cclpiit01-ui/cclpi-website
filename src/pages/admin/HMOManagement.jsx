@@ -12,6 +12,7 @@ export default function HMOManagement() {
   const [employeeStatusFilter, setEmployeeStatusFilter] = useState("All");  // Active / In-active
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 100;
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
 
   // Main modal
   const [modalOpen, setModalOpen] = useState(false);
@@ -157,6 +158,196 @@ const handleExportExcel = async () => {
 
   const dateStr = new Date().toISOString().split("T")[0];
   XLSX.writeFile(workbook, `HMO_Dependents_Export_${dateStr}.xlsx`);
+};
+
+
+const handleExportExcelForID = async () => {
+  // 1. Kunin lahat ng current memberships
+  const { data: memberships } = await supabaseEmployees
+    .from("hmo_employees")
+    .select("employee_id, hmo_member_id, effective_date, valid_until")
+    .eq("is_current", true);
+
+  const membershipMap = {};
+  (memberships || []).forEach(m => { membershipMap[m.employee_id] = m; });
+
+  // 2. Kunin lahat ng dependents
+  const { data: allDependents } = await supabaseEmployees
+    .from("hmo_dependents")
+    .select("employee_id, full_name, hmo_card_number, relationship, birth_date, gender")
+    .order("created_at");
+
+  const depsByEmployee = {};
+  (allDependents || []).forEach(d => {
+    if (!depsByEmployee[d.employee_id]) depsByEmployee[d.employee_id] = [];
+    depsByEmployee[d.employee_id].push(d);
+  });
+
+  // 3. Alamin ang pinaka-maraming dependents (para malaman ilang column blocks ang kailangan)
+  const maxDependents = Math.max(1, ...employees.map(emp => (depsByEmployee[emp.id] || []).length));
+
+  // 4. Gawa ng isang row per employee, may numbered dependent columns
+  const rows = employees.map(emp => {
+    const deps = depsByEmployee[emp.id] || [];
+    const membership = membershipMap[emp.id];
+
+    const row = {
+      "Employee ID": emp.id,
+      "Full Name": emp.full_name,
+      "HMO Member ID": membership?.hmo_member_id || "",
+      "Effectivity Date": membership?.effective_date || "",
+      "Valid Until": membership?.valid_until || "",
+      "Total Dependents": deps.length,
+    };
+
+    for (let i = 0; i < maxDependents; i++) {
+      const dep = deps[i];
+      const n = i + 1;
+      row[`Dependent Name ${n}`] = dep?.full_name || "";
+      row[`HMO Card Number ${n}`] = dep?.hmo_card_number || "";
+      row[`Relationship ${n}`] = dep?.relationship || "";
+      row[`Date of Birth ${n}`] = dep?.birth_date || "";
+      row[`Gender ${n}`] = dep?.gender || "";
+    }
+
+    return row;
+  });
+
+  // 5. Gawa ng worksheet at workbook
+  const worksheet = XLSX.utils.json_to_sheet(rows);
+
+  const baseCols = [
+    { wch: 12 }, // Employee ID
+    { wch: 26 }, // Full Name
+    { wch: 16 }, // HMO Member ID
+    { wch: 14 }, // Effectivity Date
+    { wch: 14 }, // Valid Until
+    { wch: 14 }, // Total Dependents
+  ];
+  const depCols = [];
+  for (let i = 0; i < maxDependents; i++) {
+    depCols.push({ wch: 24 }, { wch: 18 }, { wch: 14 }, { wch: 14 }, { wch: 10 });
+  }
+  worksheet["!cols"] = [...baseCols, ...depCols];
+
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "HMO ID Export");
+
+  const dateStr = new Date().toISOString().split("T")[0];
+  XLSX.writeFile(workbook, `HMO_ID_Export_${dateStr}.xlsx`);
+};
+
+const handleExportSQLite = async () => {
+  try {
+    const initSqlJs = (await import("sql.js")).default;
+    const SQL = await initSqlJs({
+      locateFile: (file) => `https://sql.js.org/dist/${file}`,
+    });
+
+    // 1. Kunin lahat ng current memberships
+    const { data: memberships } = await supabaseEmployees
+      .from("hmo_employees")
+      .select("employee_id, hmo_member_id, effective_date, valid_until")
+      .eq("is_current", true);
+
+    const membershipMap = {};
+    (memberships || []).forEach(m => { membershipMap[m.employee_id] = m; });
+
+    // 2. Kunin lahat ng dependents
+    const { data: allDependents } = await supabaseEmployees
+      .from("hmo_dependents")
+      .select("employee_id, full_name, hmo_card_number, relationship, birth_date, gender")
+      .order("created_at");
+
+    const depsByEmployee = {};
+    (allDependents || []).forEach(d => {
+      if (!depsByEmployee[d.employee_id]) depsByEmployee[d.employee_id] = [];
+      depsByEmployee[d.employee_id].push(d);
+    });
+
+    // 3. Alamin ang pinaka-maraming dependents
+    const maxDependents = Math.max(1, ...employees.map(emp => (depsByEmployee[emp.id] || []).length));
+
+    // 4. Gawa ng SQLite database in-memory
+    const db = new SQL.Database();
+
+    // Build CREATE TABLE statement dynamically base sa maxDependents
+    let createCols = [
+      `"Employee ID" TEXT`,
+      `"Full Name" TEXT`,
+      `"HMO Member ID" TEXT`,
+      `"Effectivity Date" TEXT`,
+      `"Valid Until" TEXT`,
+      `"Total Dependents" INTEGER`,
+    ];
+    for (let i = 1; i <= maxDependents; i++) {
+      createCols.push(
+        `"Dependent Name ${i}" TEXT`,
+        `"HMO Card Number ${i}" TEXT`,
+        `"Relationship ${i}" TEXT`,
+        `"Date of Birth ${i}" TEXT`,
+        `"Gender ${i}" TEXT`
+      );
+    }
+    db.run(`CREATE TABLE hmo_id_export (${createCols.join(", ")});`);
+
+    // Prepare insert statement
+    const allColNames = [
+      "Employee ID", "Full Name", "HMO Member ID", "Effectivity Date", "Valid Until", "Total Dependents",
+    ];
+    for (let i = 1; i <= maxDependents; i++) {
+      allColNames.push(`Dependent Name ${i}`, `HMO Card Number ${i}`, `Relationship ${i}`, `Date of Birth ${i}`, `Gender ${i}`);
+    }
+    const placeholders = allColNames.map(() => "?").join(", ");
+    const insertSql = `INSERT INTO hmo_id_export (${allColNames.map(c => `"${c}"`).join(", ")}) VALUES (${placeholders});`;
+    const stmt = db.prepare(insertSql);
+
+    // 5. I-insert ang data, isang row per employee
+    employees.forEach(emp => {
+      const deps = depsByEmployee[emp.id] || [];
+      const membership = membershipMap[emp.id];
+
+      const values = [
+        emp.id,
+        emp.full_name,
+        membership?.hmo_member_id || "",
+        membership?.effective_date || "",
+        membership?.valid_until || "",
+        deps.length,
+      ];
+
+      for (let i = 0; i < maxDependents; i++) {
+        const dep = deps[i];
+        values.push(
+          dep?.full_name || "",
+          dep?.hmo_card_number || "",
+          dep?.relationship || "",
+          dep?.birth_date || "",
+          dep?.gender || ""
+        );
+      }
+
+      stmt.run(values);
+    });
+    stmt.free();
+
+    // 6. I-export bilang binary at i-download
+    const binaryArray = db.export();
+    const blob = new Blob([binaryArray], { type: "application/x-sqlite3" });
+    const url = window.URL.createObjectURL(blob);
+    const dateStr = new Date().toISOString().split("T")[0];
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `HMO_ID_Export_${dateStr}.db`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+
+    db.close();
+  } catch (err) {
+    alert("Error generating SQLite file: " + err.message);
+  }
 };
 
   const refreshMembership = async (empId) => {
@@ -450,15 +641,55 @@ const filtered = employees.filter((emp) => {
               {s}
             </button>
           ))}
+                  <div style={{ position: "relative" }}>
+                    <button onClick={() => setExportMenuOpen(prev => !prev)}
+                      style={{ padding: "9px 18px", borderRadius: 10, border: "1px solid rgba(1,63,153,0.12)", background: "#fff", color: "#013F99", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "'Poppins', sans-serif", display: "flex", alignItems: "center", gap: 6 }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                      </svg>
+                      Export
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ transform: exportMenuOpen ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
+                        <polyline points="6 9 12 15 18 9"/>
+                      </svg>
+                    </button>
 
-                  <button onClick={handleExportExcel}
-        style={{ padding: "9px 18px", borderRadius: 10, border: "1px solid rgba(1,63,153,0.12)", background: "#fff", color: "#16a34a", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "'Poppins', sans-serif", display: "flex", alignItems: "center", gap: 6 }}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-        </svg>
-        Export to Excel
-        </button>
-
+                    {exportMenuOpen && (
+                      <>
+                        <div onClick={() => setExportMenuOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 20 }} />
+                        <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, background: "#fff", borderRadius: 12, border: "1px solid rgba(1,63,153,0.12)", boxShadow: "0 12px 32px rgba(0,0,0,0.12)", overflow: "hidden", zIndex: 21, minWidth: 260 }}>
+                          <button
+                            onClick={() => { setExportMenuOpen(false); handleExportExcel(); }}
+                            style={{ width: "100%", padding: "12px 16px", border: "none", background: "#fff", textAlign: "left", cursor: "pointer", display: "flex", flexDirection: "column", gap: 2 }}
+                            onMouseEnter={e => e.currentTarget.style.background = "#f6fbfe"}
+                            onMouseLeave={e => e.currentTarget.style.background = "#fff"}
+                          >
+                            <span style={{ fontSize: 13, fontWeight: 600, color: "#0b1a3b" }}>Excel — per dependent</span>
+                            <span style={{ fontSize: 11, color: "#94a3b8" }}>Isang row bawat dependent</span>
+                          </button>
+                          <div style={{ height: 1, background: "rgba(1,63,153,0.06)" }} />
+                          <button
+                            onClick={() => { setExportMenuOpen(false); handleExportExcelForID(); }}
+                            style={{ width: "100%", padding: "12px 16px", border: "none", background: "#fff", textAlign: "left", cursor: "pointer", display: "flex", flexDirection: "column", gap: 2 }}
+                            onMouseEnter={e => e.currentTarget.style.background = "#f6fbfe"}
+                            onMouseLeave={e => e.currentTarget.style.background = "#fff"}
+                          >
+                            <span style={{ fontSize: 13, fontWeight: 600, color: "#0b1a3b" }}>Excel — for ID</span>
+                            <span style={{ fontSize: 11, color: "#94a3b8" }}>Isang row bawat employee, numbered dependent columns</span>
+                          </button>
+                          <div style={{ height: 1, background: "rgba(1,63,153,0.06)" }} />
+                          <button
+                            onClick={() => { setExportMenuOpen(false); handleExportSQLite(); }}
+                            style={{ width: "100%", padding: "12px 16px", border: "none", background: "#fff", textAlign: "left", cursor: "pointer", display: "flex", flexDirection: "column", gap: 2 }}
+                            onMouseEnter={e => e.currentTarget.style.background = "#f6fbfe"}
+                            onMouseLeave={e => e.currentTarget.style.background = "#fff"}
+                          >
+                            <span style={{ fontSize: 13, fontWeight: 600, color: "#0b1a3b" }}>SQLite Database (.db)</span>
+                            <span style={{ fontSize: 11, color: "#94a3b8" }}>Parehong format ng "for ID", pero .db file</span>
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
         </div>
 
 

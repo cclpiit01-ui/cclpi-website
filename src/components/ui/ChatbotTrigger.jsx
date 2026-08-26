@@ -21,7 +21,7 @@ const ChatbotTrigger = ({ moveDown }) => {
   }, [messages, isLoading]);
 
   //const WEBHOOK_URL = 'http://localhost:5678/webhook/583d7f52-e590-4b70-a0b0-38f95e83fa94/chat';
-  const WEBHOOK_URL = 'https://cclpiplans.app.n8n.cloud/webhook/583d7f52-e590-4b70-a0b0-38f95e83fa94/chat';
+  const WEBHOOK_URL = 'https://laptop-ea1su7kn.tail6649cc.ts.net/webhook/583d7f52-e590-4b70-a0b0-38f95e83fa94/chat';
 
   const handleSendMessage = async () => {
     if (!userInput.trim()) return;
