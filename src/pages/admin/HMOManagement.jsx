@@ -240,9 +240,11 @@ const handleExportExcelForID = async () => {
 const handleExportSQLite = async () => {
   try {
     const initSqlJs = (await import("sql.js")).default;
-    const SQL = await initSqlJs({
-      locateFile: (file) => `https://sql.js.org/dist/${file}`,
-    });
+    const wasmUrl = "https://sql.js.org/dist/sql-wasm.wasm";
+    const wasmResponse = await fetch(wasmUrl);
+    if (!wasmResponse.ok) throw new Error("Hindi makuha ang SQLite engine (wasm file). I-check ang internet connection.");
+    const wasmBinary = await wasmResponse.arrayBuffer();
+    const SQL = await initSqlJs({ wasmBinary });
 
     // 1. Kunin lahat ng current memberships
     const { data: memberships } = await supabaseEmployees
@@ -338,7 +340,7 @@ const handleExportSQLite = async () => {
     const dateStr = new Date().toISOString().split("T")[0];
     const a = document.createElement("a");
     a.href = url;
-    a.download = `HMO_ID_Export_${dateStr}.db`;
+    a.download = `HMO_ID_Export_${dateStr}.sqlite`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

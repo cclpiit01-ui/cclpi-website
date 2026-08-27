@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabaseEmployees } from "@/lib/supabaseEmployees";
-const WEBHOOK_URL = "https://cclpiplans.app.n8n.cloud/webhook/16a10166-a8b3-4bd6-9485-e2f471a1405e";
+const WEBHOOK_URL = "https://laptop-ea1su7kn.tail6649cc.ts.net/webhook/16a10166-a8b3-4bd6-9485-e2f471a1405e";
 
 export default function HRManagement() {
   const [employees, setEmployees] = useState([]);
