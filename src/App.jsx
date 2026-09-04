@@ -40,6 +40,7 @@ import HMOManagement from "@/pages/admin/HMOManagement";
 import EventRSVP from "@/pages/admin/EventRSVP";
 import EventManagement from "@/pages/admin/EventManagement";
 import DigitalCard from "@/pages/admin/DigitalCard";
+import SalesCounselorCard from "@/pages/admin/SalesCounselorCard";
 import CardManagement from "@/pages/admin/CardManagement";
 
 export default function App() {
@@ -64,6 +65,7 @@ export default function App() {
            {/* Public links */}
           <Route path="/rsvp/:slug" element={<EventRSVP />} />
           <Route path="/card/:slug" element={<DigitalCard />} />
+          <Route path="/counselor/:id" element={<SalesCounselorCard />} />
 
           <Route path="/unauthorized" element={
             <div className="flex h-screen items-center justify-center">

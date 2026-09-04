@@ -51,7 +51,7 @@ const handleDownloadPoster = async (emp) => {
       .limit(1)
       .maybeSingle();
 
-    let imageUrl = existing?.image_url;
+    let imageUrl = existing?.image_url?.trim();
 
     // 2. Kung wala pa, i-trigger ang n8n webhook para mag-generate
     if (!imageUrl) {
@@ -73,12 +73,29 @@ const handleDownloadPoster = async (emp) => {
         return;
       }
 
-      imageUrl = result.image_url;
+      imageUrl = result.image_url?.trim();
     }
 
     // 3. I-download bilang blob (para hindi mag-open sa bagong tab)
-    const imgResponse = await fetch(imageUrl);
-    const blob = await imgResponse.blob();
+  // I-download bilang blob (may retry kasi minsan may propagation delay ang bagong upload)
+let imgResponse;
+let attempts = 0;
+const maxAttempts = 5;
+
+while (attempts < maxAttempts) {
+  imgResponse = await fetch(imageUrl);
+  if (imgResponse.ok) break;
+  attempts++;
+  if (attempts < maxAttempts) {
+    await new Promise((resolve) => setTimeout(resolve, 1000)); // hintay 1 segundo bago ulitin
+  }
+}
+
+if (!imgResponse.ok) {
+  throw new Error("The generated image isn't available yet — please try again in a few seconds.");
+}
+
+const blob = await imgResponse.blob();
     const blobUrl = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = blobUrl;

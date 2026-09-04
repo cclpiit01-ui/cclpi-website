@@ -50,8 +50,7 @@ export default function SalesCounselorManagement() {
   const [sortOrder, setSortOrder] = useState("asc");
   const itemsPerPage = 10;
 
-  const [viewModal, setViewModal] = useState(false);
-  const [viewData, setViewData] = useState(null);
+
   const [printData, setPrintData] = useState(null);
 
   useEffect(() => { fetchCounselors(); }, []);
@@ -61,6 +60,7 @@ export default function SalesCounselorManagement() {
     setErrorMsg(null);
     try {
       const res = await fetch(API_URL, {
+        method: "GET",
         headers: {
           Authorization: `Bearer ${API_TOKEN}`,
         },
@@ -204,7 +204,7 @@ export default function SalesCounselorManagement() {
                             </td>
                             <td style={{ padding: "12px 16px" }}>
                               <div style={{ display: "flex", gap: 8 }}>
-                                <button onClick={() => { setViewData(sc); setViewModal(true); }} style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid rgba(76,177,233,0.3)", background: "#fff", color: "#4CB1E9", fontSize: 11, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
+                                <button onClick={() => window.open(`/counselor/${sc.id_no}`, "_blank")} style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid rgba(76,177,233,0.3)", background: "#fff", color: "#4CB1E9", fontSize: 11, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
                                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                                   View
                                 </button>
@@ -241,58 +241,6 @@ export default function SalesCounselorManagement() {
           )}
         </div>
 
-        {/* VIEW MODAL */}
-        {viewModal && viewData && (
-          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "flex-start", justifyContent: "center", zIndex: 1000, padding: 20, overflowY: "auto" }}>
-            <div style={{ background: "#fff", borderRadius: 20, width: "95%", maxWidth: 800, overflowX: "hidden", padding: 32, boxSizing: "border-box", margin: "20px auto" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                <div>
-                  <h2 style={{ fontSize: 18, fontWeight: 700, color: "#0b1a3b", margin: 0, fontFamily: "'Montserrat', sans-serif" }}>Sales Counselor Profile</h2>
-                  <p style={{ fontSize: 12, color: "#64748b", margin: "4px 0 0" }}>ID No.: {viewData.id_no}</p>
-                </div>
-                <button onClick={() => setViewModal(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b" }}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                </button>
-              </div>
-              <div style={{ height: 3, background: "linear-gradient(90deg, #013F99, #4CB1E9, #F3CF47)", borderRadius: 2, marginBottom: 24 }} />
-
-              <div style={{ display: "flex", alignItems: "center", gap: 20, marginBottom: 24, padding: "16px 20px", background: "#f6fbfe", borderRadius: 14, border: "1px solid rgba(1,63,153,0.06)" }}>
-                <div style={{ width: 60, height: 60, borderRadius: "50%", background: "linear-gradient(135deg, #013F99, #4CB1E9)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  <span style={{ fontSize: 22, fontWeight: 700, color: "#fff" }}>{viewData.full_name?.[0]?.toUpperCase() || "?"}</span>
-                </div>
-                <div>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: "#0b1a3b", fontFamily: "'Montserrat', sans-serif" }}>{viewData.full_name}</div>
-                  <div style={{ fontSize: 13, color: "#4CB1E9", fontWeight: 500, marginTop: 2 }}>{viewData.position || "—"}</div>
-                  <div style={{ display: "flex", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
-                    {viewData.agency && <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, background: "rgba(1,63,153,0.08)", color: "#013F99", fontWeight: 600 }}>{viewData.agency}</span>}
-                    <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, background: isActiveValue(viewData.expiry_date) ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)", color: isActiveValue(viewData.expiry_date) ? "#16a34a" : "#dc2626", fontWeight: 600 }}>{isActiveValue(viewData.expiry_date) ? "Active" : "Expired"}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
-                {[
-                  ["Birthday", viewData.birthday], ["Manager", viewData.manager], ["Expiry Date", viewData.expiry_date],
-                  ["OR Date", viewData.or_date], ["Date Released", viewData.date_released],
-                ].map(([label, value]) => (
-                  <div key={label} style={{ display: "flex", flexDirection: "column", gap: 6, padding: "16px 18px", background: "#f6fbfe", borderRadius: 12, border: "1px solid rgba(1,63,153,0.08)" }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: "#4CB1E9", textTransform: "uppercase", letterSpacing: 1.2 }}>{label}</div>
-                    <div style={{ fontSize: 14, color: "#0b1a3b", fontWeight: 600 }}>{value || "—"}</div>
-                  </div>
-                ))}
-
-                <div style={{ gridColumn: "1 / -1", display: "flex", flexDirection: "column", gap: 4, padding: "12px 16px", background: "#f6fbfe", borderRadius: 10, border: "1px solid rgba(1,63,153,0.06)" }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: "#4CB1E9", textTransform: "uppercase", letterSpacing: 1 }}>Address</div>
-                  <div style={{ fontSize: 13, color: "#0b1a3b", fontWeight: 500 }}>{viewData.address || "—"}</div>
-                </div>
-              </div>
-
-              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 24 }}>
-                <button onClick={() => setViewModal(false)} style={{ padding: "10px 24px", borderRadius: 10, border: "1px solid rgba(1,63,153,0.15)", background: "#fff", color: "#64748b", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'Poppins', sans-serif" }}>Close</button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* PRINT PREVIEW */}

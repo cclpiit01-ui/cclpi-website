@@ -49,42 +49,44 @@ export default function BoardOfDirectors() {
   const openEdit = (member) => { setEditData({ ...member }); setEditModal(true); };
   const handleEditChange = (field, value) => setEditData(prev => ({ ...prev, [field]: value }));
 
-  const handleAdd = async () => {
-    if (!addData.full_name?.trim()) return alert("Kailangan ng pangalan.");
-    setAdding(true);
-    try {
-      let pictureUrl = null;
-      if (pictureFile) pictureUrl = await uploadFile(pictureFile, 'board-of-directors');
-      const { error } = await supabaseEmployees.from('board_of_directors').insert({
-        full_name: addData.full_name,
-        position: addData.position || null,
-        bio: addData.bio || null,
-        dob: addData.dob || null,
-        picture: pictureUrl,
-        sort_order: addData.sort_order ? parseInt(addData.sort_order) : (members.length + 1),
-        status: addData.status || 'Active',
-      });
+const handleAdd = async () => {
+  if (!addData.full_name?.trim()) return alert("Kailangan ng pangalan.");
+  setAdding(true);
+  try {
+    let pictureUrl = null;
+    if (pictureFile) pictureUrl = await uploadFile(pictureFile, 'board-of-directors');
+    const { error } = await supabaseEmployees.from('board_of_directors').insert({
+      full_name: addData.full_name,
+      position: addData.position || null,
+      bio: addData.bio || null,
+      dob: addData.dob || null,
+      picture: pictureUrl,
+      photo_cutout_url: pictureUrl,
+      sort_order: addData.sort_order ? parseInt(addData.sort_order) : (members.length + 1),
+      status: addData.status || 'Active',
+    });
       if (error) alert('Error adding member: ' + error.message);
       else { setAddModal(false); setAddData({}); setPictureFile(null); fetchMembers(); }
     } catch (err) { alert('Upload error: ' + err.message); }
     setAdding(false);
   };
 
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      let pictureUrl = editData.picture;
-      if (editPictureFile) pictureUrl = await uploadFile(editPictureFile, 'board-of-directors');
-      const { error } = await supabaseEmployees.from("board_of_directors").update({
-        full_name: editData.full_name,
-        position: editData.position,
-        bio: editData.bio,
-        dob: editData.dob,
-        sort_order: editData.sort_order ? parseInt(editData.sort_order) : 0,
-        status: editData.status,
-        picture: pictureUrl,
-        updated_at: new Date().toISOString(),
-      }).eq("id", editData.id);
+const handleSave = async () => {
+  setSaving(true);
+  try {
+    let pictureUrl = editData.picture;
+    if (editPictureFile) pictureUrl = await uploadFile(editPictureFile, 'board-of-directors');
+    const { error } = await supabaseEmployees.from("board_of_directors").update({
+      full_name: editData.full_name,
+      position: editData.position,
+      bio: editData.bio,
+      dob: editData.dob,
+      sort_order: editData.sort_order ? parseInt(editData.sort_order) : 0,
+      status: editData.status,
+      picture: pictureUrl,
+      photo_cutout_url: pictureUrl,
+      updated_at: new Date().toISOString(),
+    }).eq("id", editData.id);
       setSaving(false);
       if (!error) { setEditModal(false); setEditPictureFile(null); fetchMembers(); }
       else alert("Error saving: " + error.message);

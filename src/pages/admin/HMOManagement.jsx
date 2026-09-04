@@ -75,177 +75,15 @@ export default function HMOManagement() {
     return urlData.publicUrl;
   };
 
-const handleExportExcel = async () => {
-  // 1. Kunin lahat ng current memberships
-  const { data: memberships } = await supabaseEmployees
-    .from("hmo_employees")
-    .select("employee_id, hmo_member_id, effective_date, valid_until")
-    .eq("is_current", true);
-
-  const membershipMap = {};
-  (memberships || []).forEach(m => { membershipMap[m.employee_id] = m; });
-
-  // 2. Kunin lahat ng dependents
-  const { data: allDependents } = await supabaseEmployees
-    .from("hmo_dependents")
-    .select("employee_id, full_name, hmo_card_number, relationship, birth_date, gender");
-
-  const depsByEmployee = {};
-  (allDependents || []).forEach(d => {
-    if (!depsByEmployee[d.employee_id]) depsByEmployee[d.employee_id] = [];
-    depsByEmployee[d.employee_id].push(d);
-  });
-
-  // 3. Gawa ng flat rows: isang row per dependent (o isang row kung walang dependent)
-  const rows = [];
-  employees.forEach(emp => {
-    const deps = depsByEmployee[emp.id] || [];
-    const membership = membershipMap[emp.id];
-    const totalDeps = deps.length;
-
-    if (deps.length === 0) {
-      rows.push({
-        "Employee ID": emp.id,
-        "Full Name": emp.full_name,
-        "HMO Member ID": membership?.hmo_member_id || "",
-        "Effectivity Date": membership?.effective_date || "",
-        "Valid Until": membership?.valid_until || "",
-        "Total Dependents": totalDeps,
-        "Dependent Name": "",
-        "HMO Card Number": "",
-        "Relationship": "",
-        "Date of Birth": "",
-        "Gender": "",
-      });
-    } else {
-      deps.forEach(dep => {
-        rows.push({
-          "Employee ID": emp.id,
-          "Full Name": emp.full_name,
-          "HMO Member ID": membership?.hmo_member_id || "",
-          "Effectivity Date": membership?.effective_date || "",
-          "Valid Until": membership?.valid_until || "",
-          "Total Dependents": totalDeps,
-          "Dependent Name": dep.full_name,
-          "HMO Card Number": dep.hmo_card_number || "",
-          "Relationship": dep.relationship || "",
-          "Date of Birth": dep.birth_date || "",
-          "Gender": dep.gender || "",
-        });
-      });
+    const formatDependentName = (dep) => {
+    if (dep.last_name) {
+      const middleInitial = dep.middle_name ? ` ${dep.middle_name.trim()[0].toUpperCase()}.` : "";
+      return `${dep.first_name || ""}${middleInitial} ${dep.last_name}`.replace(/\s+/g, " ").trim();
     }
-  });
+    return dep.first_name || dep.full_name || "";
+  };
 
-  // 4. Gawa ng worksheet at workbook
-  const worksheet = XLSX.utils.json_to_sheet(rows);
-
-  worksheet["!cols"] = [
-    { wch: 12 }, // Employee ID
-    { wch: 26 }, // Full Name
-    { wch: 16 }, // HMO Member ID
-    { wch: 14 }, // Effectivity Date
-    { wch: 14 }, // Valid Until
-    { wch: 14 }, // Total Dependents
-    { wch: 26 }, // Dependent Name
-    { wch: 18 }, // HMO Card Number
-    { wch: 14 }, // Relationship
-    { wch: 14 }, // Date of Birth
-    { wch: 10 }, // Gender
-  ];
-
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, "HMO Dependents");
-
-  const dateStr = new Date().toISOString().split("T")[0];
-  XLSX.writeFile(workbook, `HMO_Dependents_Export_${dateStr}.xlsx`);
-};
-
-
-const handleExportExcelForID = async () => {
-  // 1. Kunin lahat ng current memberships
-  const { data: memberships } = await supabaseEmployees
-    .from("hmo_employees")
-    .select("employee_id, hmo_member_id, effective_date, valid_until")
-    .eq("is_current", true);
-
-  const membershipMap = {};
-  (memberships || []).forEach(m => { membershipMap[m.employee_id] = m; });
-
-  // 2. Kunin lahat ng dependents
-  const { data: allDependents } = await supabaseEmployees
-    .from("hmo_dependents")
-    .select("employee_id, full_name, hmo_card_number, relationship, birth_date, gender")
-    .order("created_at");
-
-  const depsByEmployee = {};
-  (allDependents || []).forEach(d => {
-    if (!depsByEmployee[d.employee_id]) depsByEmployee[d.employee_id] = [];
-    depsByEmployee[d.employee_id].push(d);
-  });
-
-  // 3. Alamin ang pinaka-maraming dependents (para malaman ilang column blocks ang kailangan)
-  const maxDependents = Math.max(1, ...employees.map(emp => (depsByEmployee[emp.id] || []).length));
-
-  // 4. Gawa ng isang row per employee, may numbered dependent columns
-  const rows = employees.map(emp => {
-    const deps = depsByEmployee[emp.id] || [];
-    const membership = membershipMap[emp.id];
-
-    const row = {
-      "Employee ID": emp.id,
-      "Full Name": emp.full_name,
-      "HMO Member ID": membership?.hmo_member_id || "",
-      "Effectivity Date": membership?.effective_date || "",
-      "Valid Until": membership?.valid_until || "",
-      "Total Dependents": deps.length,
-    };
-
-    for (let i = 0; i < maxDependents; i++) {
-      const dep = deps[i];
-      const n = i + 1;
-      row[`Dependent Name ${n}`] = dep?.full_name || "";
-      row[`HMO Card Number ${n}`] = dep?.hmo_card_number || "";
-      row[`Relationship ${n}`] = dep?.relationship || "";
-      row[`Date of Birth ${n}`] = dep?.birth_date || "";
-      row[`Gender ${n}`] = dep?.gender || "";
-    }
-
-    return row;
-  });
-
-  // 5. Gawa ng worksheet at workbook
-  const worksheet = XLSX.utils.json_to_sheet(rows);
-
-  const baseCols = [
-    { wch: 12 }, // Employee ID
-    { wch: 26 }, // Full Name
-    { wch: 16 }, // HMO Member ID
-    { wch: 14 }, // Effectivity Date
-    { wch: 14 }, // Valid Until
-    { wch: 14 }, // Total Dependents
-  ];
-  const depCols = [];
-  for (let i = 0; i < maxDependents; i++) {
-    depCols.push({ wch: 24 }, { wch: 18 }, { wch: 14 }, { wch: 14 }, { wch: 10 });
-  }
-  worksheet["!cols"] = [...baseCols, ...depCols];
-
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, "HMO ID Export");
-
-  const dateStr = new Date().toISOString().split("T")[0];
-  XLSX.writeFile(workbook, `HMO_ID_Export_${dateStr}.xlsx`);
-};
-
-const handleExportSQLite = async () => {
-  try {
-    const initSqlJs = (await import("sql.js")).default;
-    const wasmUrl = "https://sql.js.org/dist/sql-wasm.wasm";
-    const wasmResponse = await fetch(wasmUrl);
-    if (!wasmResponse.ok) throw new Error("Hindi makuha ang SQLite engine (wasm file). I-check ang internet connection.");
-    const wasmBinary = await wasmResponse.arrayBuffer();
-    const SQL = await initSqlJs({ wasmBinary });
-
+  const handleExportExcel = async () => {
     // 1. Kunin lahat ng current memberships
     const { data: memberships } = await supabaseEmployees
       .from("hmo_employees")
@@ -258,7 +96,92 @@ const handleExportSQLite = async () => {
     // 2. Kunin lahat ng dependents
     const { data: allDependents } = await supabaseEmployees
       .from("hmo_dependents")
-      .select("employee_id, full_name, hmo_card_number, relationship, birth_date, gender")
+      .select("employee_id, full_name, first_name, middle_name, last_name, hmo_card_number, relationship, birth_date, gender");
+
+    const depsByEmployee = {};
+    (allDependents || []).forEach(d => {
+      if (!depsByEmployee[d.employee_id]) depsByEmployee[d.employee_id] = [];
+      depsByEmployee[d.employee_id].push(d);
+    });
+
+    // 3. Gawa ng flat rows base sa CURRENTLY FILTERED employees lang
+    const rows = [];
+    filtered.forEach(emp => {
+      const deps = depsByEmployee[emp.id] || [];
+      const membership = membershipMap[emp.id];
+      const totalDeps = deps.length;
+
+      if (deps.length === 0) {
+        rows.push({
+          "Employee ID": emp.id,
+          "Full Name": emp.full_name,
+          "HMO Member ID": membership?.hmo_member_id || "",
+          "Effectivity Date": membership?.effective_date || "",
+          "Valid Until": membership?.valid_until || "",
+          "Total Dependents": totalDeps,
+          "Dependent Name": "",
+          "HMO Card Number": "",
+          "Relationship": "",
+          "Date of Birth": "",
+          "Gender": "",
+        });
+      } else {
+        deps.forEach(dep => {
+          rows.push({
+            "Employee ID": emp.id,
+            "Full Name": emp.full_name,
+            "HMO Member ID": membership?.hmo_member_id || "",
+            "Effectivity Date": membership?.effective_date || "",
+            "Valid Until": membership?.valid_until || "",
+            "Total Dependents": totalDeps,
+            "Dependent Name": formatDependentName(dep),
+            "HMO Card Number": dep.hmo_card_number || "",
+            "Relationship": dep.relationship || "",
+            "Date of Birth": dep.birth_date || "",
+            "Gender": dep.gender || "",
+          });
+        });
+      }
+    });
+
+    // 4. Gawa ng worksheet at workbook
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+
+    worksheet["!cols"] = [
+      { wch: 12 }, // Employee ID
+      { wch: 26 }, // Full Name
+      { wch: 16 }, // HMO Member ID
+      { wch: 14 }, // Effectivity Date
+      { wch: 14 }, // Valid Until
+      { wch: 14 }, // Total Dependents
+      { wch: 26 }, // Dependent Name
+      { wch: 18 }, // HMO Card Number
+      { wch: 14 }, // Relationship
+      { wch: 14 }, // Date of Birth
+      { wch: 10 }, // Gender
+    ];
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "HMO Dependents");
+
+    const dateStr = new Date().toISOString().split("T")[0];
+    XLSX.writeFile(workbook, `HMO_Dependents_Export_${dateStr}.xlsx`);
+  };
+
+  const handleExportExcelForID = async () => {
+    // 1. Kunin lahat ng current memberships
+    const { data: memberships } = await supabaseEmployees
+      .from("hmo_employees")
+      .select("employee_id, hmo_member_id, effective_date, valid_until")
+      .eq("is_current", true);
+
+    const membershipMap = {};
+    (memberships || []).forEach(m => { membershipMap[m.employee_id] = m; });
+
+    // 2. Kunin lahat ng dependents
+    const { data: allDependents } = await supabaseEmployees
+      .from("hmo_dependents")
+      .select("employee_id, full_name, first_name, middle_name, last_name, hmo_card_number, relationship, birth_date, gender")
       .order("created_at");
 
     const depsByEmployee = {};
@@ -267,90 +190,170 @@ const handleExportSQLite = async () => {
       depsByEmployee[d.employee_id].push(d);
     });
 
-    // 3. Alamin ang pinaka-maraming dependents
-    const maxDependents = Math.max(1, ...employees.map(emp => (depsByEmployee[emp.id] || []).length));
+    // 3. Alamin ang pinaka-maraming dependents (base sa FILTERED employees)
+    const maxDependents = Math.max(1, ...filtered.map(emp => (depsByEmployee[emp.id] || []).length));
 
-    // 4. Gawa ng SQLite database in-memory
-    const db = new SQL.Database();
-
-    // Build CREATE TABLE statement dynamically base sa maxDependents
-    let createCols = [
-      `"Employee ID" TEXT`,
-      `"Full Name" TEXT`,
-      `"HMO Member ID" TEXT`,
-      `"Effectivity Date" TEXT`,
-      `"Valid Until" TEXT`,
-      `"Total Dependents" INTEGER`,
-    ];
-    for (let i = 1; i <= maxDependents; i++) {
-      createCols.push(
-        `"Dependent Name ${i}" TEXT`,
-        `"HMO Card Number ${i}" TEXT`,
-        `"Relationship ${i}" TEXT`,
-        `"Date of Birth ${i}" TEXT`,
-        `"Gender ${i}" TEXT`
-      );
-    }
-    db.run(`CREATE TABLE hmo_id_export (${createCols.join(", ")});`);
-
-    // Prepare insert statement
-    const allColNames = [
-      "Employee ID", "Full Name", "HMO Member ID", "Effectivity Date", "Valid Until", "Total Dependents",
-    ];
-    for (let i = 1; i <= maxDependents; i++) {
-      allColNames.push(`Dependent Name ${i}`, `HMO Card Number ${i}`, `Relationship ${i}`, `Date of Birth ${i}`, `Gender ${i}`);
-    }
-    const placeholders = allColNames.map(() => "?").join(", ");
-    const insertSql = `INSERT INTO hmo_id_export (${allColNames.map(c => `"${c}"`).join(", ")}) VALUES (${placeholders});`;
-    const stmt = db.prepare(insertSql);
-
-    // 5. I-insert ang data, isang row per employee
-    employees.forEach(emp => {
+    // 4. Gawa ng isang row per FILTERED employee, may numbered dependent columns
+    const rows = filtered.map(emp => {
       const deps = depsByEmployee[emp.id] || [];
       const membership = membershipMap[emp.id];
 
-      const values = [
-        emp.id,
-        emp.full_name,
-        membership?.hmo_member_id || "",
-        membership?.effective_date || "",
-        membership?.valid_until || "",
-        deps.length,
-      ];
+      const row = {
+        "Employee ID": emp.id,
+        "Full Name": emp.full_name,
+        "HMO Member ID": membership?.hmo_member_id || "",
+        "Effectivity Date": membership?.effective_date || "",
+        "Valid Until": membership?.valid_until || "",
+        "Total Dependents": deps.length,
+      };
 
       for (let i = 0; i < maxDependents; i++) {
         const dep = deps[i];
-        values.push(
-          dep?.full_name || "",
-          dep?.hmo_card_number || "",
-          dep?.relationship || "",
-          dep?.birth_date || "",
-          dep?.gender || ""
-        );
+        const n = i + 1;
+        row[`Dependent Name ${n}`] = dep ? formatDependentName(dep) : "";
       }
 
-      stmt.run(values);
+      return row;
     });
-    stmt.free();
 
-    // 6. I-export bilang binary at i-download
-    const binaryArray = db.export();
-    const blob = new Blob([binaryArray], { type: "application/x-sqlite3" });
-    const url = window.URL.createObjectURL(blob);
+    // 5. Gawa ng worksheet at workbook
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+
+    const baseCols = [
+      { wch: 12 }, // Employee ID
+      { wch: 26 }, // Full Name
+      { wch: 16 }, // HMO Member ID
+      { wch: 14 }, // Effectivity Date
+      { wch: 14 }, // Valid Until
+      { wch: 14 }, // Total Dependents
+    ];
+    const depCols = [];
+    for (let i = 0; i < maxDependents; i++) {
+      depCols.push({ wch: 24 }, { wch: 18 }, { wch: 14 }, { wch: 14 }, { wch: 10 });
+    }
+    worksheet["!cols"] = [...baseCols, ...depCols];
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "HMO ID Export");
+
     const dateStr = new Date().toISOString().split("T")[0];
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `HMO_ID_Export_${dateStr}.sqlite`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
+    XLSX.writeFile(workbook, `HMO_ID_Export_${dateStr}.xlsx`);
+  };
 
-    db.close();
-  } catch (err) {
-    alert("Error generating SQLite file: " + err.message);
-  }
-};
+  const handleExportSQLite = async () => {
+    try {
+      const initSqlJs = (await import("sql.js")).default;
+      const wasmUrl = "https://sql.js.org/dist/sql-wasm.wasm";
+      const wasmResponse = await fetch(wasmUrl);
+      if (!wasmResponse.ok) throw new Error("Hindi makuha ang SQLite engine (wasm file). I-check ang internet connection.");
+      const wasmBinary = await wasmResponse.arrayBuffer();
+      const SQL = await initSqlJs({ wasmBinary });
+
+      // 1. Kunin lahat ng current memberships
+      const { data: memberships } = await supabaseEmployees
+        .from("hmo_employees")
+        .select("employee_id, hmo_member_id, effective_date, valid_until")
+        .eq("is_current", true);
+
+      const membershipMap = {};
+      (memberships || []).forEach(m => { membershipMap[m.employee_id] = m; });
+
+      // 2. Kunin lahat ng dependents
+      const { data: allDependents } = await supabaseEmployees
+        .from("hmo_dependents")
+        .select("employee_id, full_name, first_name, middle_name, last_name, hmo_card_number, relationship, birth_date, gender")
+        .order("created_at");
+
+      const depsByEmployee = {};
+      (allDependents || []).forEach(d => {
+        if (!depsByEmployee[d.employee_id]) depsByEmployee[d.employee_id] = [];
+        depsByEmployee[d.employee_id].push(d);
+      });
+
+      // 3. Alamin ang pinaka-maraming dependents (base sa FILTERED employees)
+      const maxDependents = Math.max(1, ...filtered.map(emp => (depsByEmployee[emp.id] || []).length));
+
+      // 4. Gawa ng SQLite database in-memory
+      const db = new SQL.Database();
+
+      // Build CREATE TABLE statement dynamically base sa maxDependents
+      let createCols = [
+        `"Employee ID" TEXT`,
+        `"Full Name" TEXT`,
+        `"HMO Member ID" TEXT`,
+        `"Effectivity Date" TEXT`,
+        `"Valid Until" TEXT`,
+        `"Total Dependents" INTEGER`,
+      ];
+      for (let i = 1; i <= maxDependents; i++) {
+        createCols.push(
+          `"Dependent Name ${i}" TEXT`,
+          `"HMO Card Number ${i}" TEXT`,
+          `"Relationship ${i}" TEXT`,
+          `"Date of Birth ${i}" TEXT`,
+          `"Gender ${i}" TEXT`
+        );
+      }
+      db.run(`CREATE TABLE hmo_id_export (${createCols.join(", ")});`);
+
+      // Prepare insert statement
+      const allColNames = [
+        "Employee ID", "Full Name", "HMO Member ID", "Effectivity Date", "Valid Until", "Total Dependents",
+      ];
+      for (let i = 1; i <= maxDependents; i++) {
+        allColNames.push(`Dependent Name ${i}`, `HMO Card Number ${i}`, `Relationship ${i}`, `Date of Birth ${i}`, `Gender ${i}`);
+      }
+      const placeholders = allColNames.map(() => "?").join(", ");
+      const insertSql = `INSERT INTO hmo_id_export (${allColNames.map(c => `"${c}"`).join(", ")}) VALUES (${placeholders});`;
+      const stmt = db.prepare(insertSql);
+
+      // 5. I-insert ang data, isang row per FILTERED employee
+      filtered.forEach(emp => {
+        const deps = depsByEmployee[emp.id] || [];
+        const membership = membershipMap[emp.id];
+
+        const values = [
+          emp.id,
+          emp.full_name,
+          membership?.hmo_member_id || "",
+          membership?.effective_date || "",
+          membership?.valid_until || "",
+          deps.length,
+        ];
+
+        for (let i = 0; i < maxDependents; i++) {
+          const dep = deps[i];
+          values.push(
+            dep ? formatDependentName(dep) : "",
+            dep?.hmo_card_number || "",
+            dep?.relationship || "",
+            dep?.birth_date || "",
+            dep?.gender || ""
+          );
+        }
+
+        stmt.run(values);
+      });
+      stmt.free();
+
+      // 6. I-export bilang binary at i-download
+      const binaryArray = db.export();
+      const blob = new Blob([binaryArray], { type: "application/x-sqlite3" });
+      const url = window.URL.createObjectURL(blob);
+      const dateStr = new Date().toISOString().split("T")[0];
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `HMO_ID_Export_${dateStr}.sqlite`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+
+      db.close();
+    } catch (err) {
+      alert("Error generating SQLite file: " + err.message);
+    }
+  };
 
   const refreshMembership = async (empId) => {
     const { data } = await supabaseEmployees
@@ -467,7 +470,7 @@ const handleExportSQLite = async () => {
   };
 
   // ── DEPENDENT ACTIONS ─────────────────────────────
-const openAddDepForm = () => {
+  const openAddDepForm = () => {
     setDepForm({ relationship: "Spouse", hmo_status: "Active" });
     setEditingDepId(null);
     setIdDocFile(null);
@@ -485,9 +488,9 @@ const openAddDepForm = () => {
 
   const handleDepFormChange = (field, value) => setDepForm(prev => ({ ...prev, [field]: value }));
 
-const handleSaveDependent = async () => {
-    if (!depForm.full_name || !depForm.relationship) {
-      alert("Kailangan ng Full Name at Relationship.");
+  const handleSaveDependent = async () => {
+    if (!depForm.first_name || !depForm.last_name || !depForm.relationship) {
+      alert("Kailangan ng First Name, Last Name, at Relationship.");
       return;
     }
     setSavingDep(true);
@@ -499,9 +502,15 @@ const handleSaveDependent = async () => {
       if (idDocFile) idDocUrl = await uploadDependentFile(idDocFile, 'id-documents');
       if (birthCertFile) birthCertUrl = await uploadDependentFile(birthCertFile, 'birth-certificates');
 
+      const computedFullName = [depForm.first_name, depForm.middle_name, depForm.last_name]
+        .filter(Boolean).join(" ");
+
       const payload = {
         employee_id: activeEmployee.id,
-        full_name: depForm.full_name,
+        first_name: depForm.first_name,
+        middle_name: depForm.middle_name || null,
+        last_name: depForm.last_name,
+        full_name: computedFullName,
         relationship: depForm.relationship,
         birth_date: depForm.birth_date || null,
         gender: depForm.gender || null,
@@ -544,35 +553,35 @@ const handleSaveDependent = async () => {
   };
 
   const handleDownloadDependentFiles = async (dep) => {
-  if (!dep.id_document_url && !dep.birth_cert_url) {
-    alert("Walang naka-upload na files para kay " + dep.full_name);
-    return;
-  }
-
-  const downloadFile = async (url, label) => {
-    try {
-      const response = await fetch(url);
-      const blob = await response.blob();
-      const blobUrl = window.URL.createObjectURL(blob);
-      const ext = url.split('.').pop().split('?')[0];
-      const a = document.createElement("a");
-      a.href = blobUrl;
-      a.download = `${dep.full_name.replace(/\s+/g, "_")}_${label}.${ext}`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(blobUrl);
-    } catch (err) {
-      alert(`Error downloading ${label}: ` + err.message);
+    if (!dep.id_document_url && !dep.birth_cert_url) {
+      alert("Walang naka-upload na files para kay " + dep.full_name);
+      return;
     }
+
+    const downloadFile = async (url, label) => {
+      try {
+        const response = await fetch(url);
+        const blob = await response.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+        const ext = url.split('.').pop().split('?')[0];
+        const a = document.createElement("a");
+        a.href = blobUrl;
+        a.download = `${dep.full_name.replace(/\s+/g, "_")}_${label}.${ext}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(blobUrl);
+      } catch (err) {
+        alert(`Error downloading ${label}: ` + err.message);
+      }
+    };
+
+    if (dep.id_document_url) await downloadFile(dep.id_document_url, "Valid_ID");
+    if (dep.birth_cert_url) await downloadFile(dep.birth_cert_url, "Birth_Certificate");
   };
 
-  if (dep.id_document_url) await downloadFile(dep.id_document_url, "Valid_ID");
-  if (dep.birth_cert_url) await downloadFile(dep.birth_cert_url, "Birth_Certificate");
-};
-
   // ── FILTERS / PAGINATION ─────────────────────────
-const filtered = employees.filter((emp) => {
+  const filtered = employees.filter((emp) => {
     const matchSearch = emp.full_name?.toLowerCase().includes(search.toLowerCase()) ||
       emp.id?.toLowerCase().includes(search.toLowerCase()) ||
       membershipMap[emp.id]?.hmo_member_id?.toLowerCase().includes(search.toLowerCase());
@@ -621,7 +630,7 @@ const filtered = employees.filter((emp) => {
             <input placeholder="Search by name, ID, or Member ID..." value={search} onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
               style={{ width: "100%", boxSizing: "border-box", padding: "10px 16px 10px 36px", border: "1px solid rgba(1,63,153,0.12)", borderRadius: 10, fontSize: 13, color: "#0b1a3b", outline: "none", fontFamily: "'Poppins', sans-serif" }} />
           </div>
-<button onClick={() => { setStatusFilter("All"); setEmployeeStatusFilter("All"); setCurrentPage(1); }}
+          <button onClick={() => { setStatusFilter("All"); setEmployeeStatusFilter("All"); setCurrentPage(1); }}
             style={{ padding: "9px 18px", borderRadius: 10, border: "1px solid rgba(1,63,153,0.12)", background: (statusFilter === "All" && employeeStatusFilter === "All") ? "#013F99" : "#fff", color: (statusFilter === "All" && employeeStatusFilter === "All") ? "#fff" : "#64748b", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "'Poppins', sans-serif" }}>
             All
           </button>
@@ -643,57 +652,62 @@ const filtered = employees.filter((emp) => {
               {s}
             </button>
           ))}
-                  <div style={{ position: "relative" }}>
-                    <button onClick={() => setExportMenuOpen(prev => !prev)}
-                      style={{ padding: "9px 18px", borderRadius: 10, border: "1px solid rgba(1,63,153,0.12)", background: "#fff", color: "#013F99", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "'Poppins', sans-serif", display: "flex", alignItems: "center", gap: 6 }}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-                      </svg>
-                      Export
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ transform: exportMenuOpen ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
-                        <polyline points="6 9 12 15 18 9"/>
-                      </svg>
-                    </button>
 
-                    {exportMenuOpen && (
-                      <>
-                        <div onClick={() => setExportMenuOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 20 }} />
-                        <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, background: "#fff", borderRadius: 12, border: "1px solid rgba(1,63,153,0.12)", boxShadow: "0 12px 32px rgba(0,0,0,0.12)", overflow: "hidden", zIndex: 21, minWidth: 260 }}>
-                          <button
-                            onClick={() => { setExportMenuOpen(false); handleExportExcel(); }}
-                            style={{ width: "100%", padding: "12px 16px", border: "none", background: "#fff", textAlign: "left", cursor: "pointer", display: "flex", flexDirection: "column", gap: 2 }}
-                            onMouseEnter={e => e.currentTarget.style.background = "#f6fbfe"}
-                            onMouseLeave={e => e.currentTarget.style.background = "#fff"}
-                          >
-                            <span style={{ fontSize: 13, fontWeight: 600, color: "#0b1a3b" }}>Excel — per dependent</span>
-                            <span style={{ fontSize: 11, color: "#94a3b8" }}>Isang row bawat dependent</span>
-                          </button>
-                          <div style={{ height: 1, background: "rgba(1,63,153,0.06)" }} />
-                          <button
-                            onClick={() => { setExportMenuOpen(false); handleExportExcelForID(); }}
-                            style={{ width: "100%", padding: "12px 16px", border: "none", background: "#fff", textAlign: "left", cursor: "pointer", display: "flex", flexDirection: "column", gap: 2 }}
-                            onMouseEnter={e => e.currentTarget.style.background = "#f6fbfe"}
-                            onMouseLeave={e => e.currentTarget.style.background = "#fff"}
-                          >
-                            <span style={{ fontSize: 13, fontWeight: 600, color: "#0b1a3b" }}>Excel — for ID</span>
-                            <span style={{ fontSize: 11, color: "#94a3b8" }}>Isang row bawat employee, numbered dependent columns</span>
-                          </button>
-                          <div style={{ height: 1, background: "rgba(1,63,153,0.06)" }} />
-                          <button
-                            onClick={() => { setExportMenuOpen(false); handleExportSQLite(); }}
-                            style={{ width: "100%", padding: "12px 16px", border: "none", background: "#fff", textAlign: "left", cursor: "pointer", display: "flex", flexDirection: "column", gap: 2 }}
-                            onMouseEnter={e => e.currentTarget.style.background = "#f6fbfe"}
-                            onMouseLeave={e => e.currentTarget.style.background = "#fff"}
-                          >
-                            <span style={{ fontSize: 13, fontWeight: 600, color: "#0b1a3b" }}>SQLite Database (.db)</span>
-                            <span style={{ fontSize: 11, color: "#94a3b8" }}>Parehong format ng "for ID", pero .db file</span>
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </div>
+          <div style={{ position: "relative" }}>
+            <button onClick={() => setExportMenuOpen(prev => !prev)}
+              style={{ padding: "9px 18px", borderRadius: 10, border: "1px solid rgba(1,63,153,0.12)", background: "#fff", color: "#013F99", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "'Poppins', sans-serif", display: "flex", alignItems: "center", gap: 6 }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              Export
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ transform: exportMenuOpen ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </button>
+
+            {exportMenuOpen && (
+              <>
+                <div onClick={() => setExportMenuOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 20 }} />
+                <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, background: "#fff", borderRadius: 12, border: "1px solid rgba(1,63,153,0.12)", boxShadow: "0 12px 32px rgba(0,0,0,0.12)", overflow: "hidden", zIndex: 21, minWidth: 260 }}>
+                  {(statusFilter !== "All" || employeeStatusFilter !== "All" || search) && (
+                    <div style={{ padding: "10px 16px", background: "#fff9e6", fontSize: 11, color: "#b8860b", borderBottom: "1px solid rgba(1,63,153,0.06)" }}>
+                      📋 Ie-export lang ang {filtered.length} filtered na employee(s)
+                    </div>
+                  )}
+                  <button
+                    onClick={() => { setExportMenuOpen(false); handleExportExcel(); }}
+                    style={{ width: "100%", padding: "12px 16px", border: "none", background: "#fff", textAlign: "left", cursor: "pointer", display: "flex", flexDirection: "column", gap: 2 }}
+                    onMouseEnter={e => e.currentTarget.style.background = "#f6fbfe"}
+                    onMouseLeave={e => e.currentTarget.style.background = "#fff"}
+                  >
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "#0b1a3b" }}>Excel — per dependent</span>
+                    <span style={{ fontSize: 11, color: "#94a3b8" }}>Isang row bawat dependent</span>
+                  </button>
+                  <div style={{ height: 1, background: "rgba(1,63,153,0.06)" }} />
+                  <button
+                    onClick={() => { setExportMenuOpen(false); handleExportExcelForID(); }}
+                    style={{ width: "100%", padding: "12px 16px", border: "none", background: "#fff", textAlign: "left", cursor: "pointer", display: "flex", flexDirection: "column", gap: 2 }}
+                    onMouseEnter={e => e.currentTarget.style.background = "#f6fbfe"}
+                    onMouseLeave={e => e.currentTarget.style.background = "#fff"}
+                  >
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "#0b1a3b" }}>Excel — for ID</span>
+                    <span style={{ fontSize: 11, color: "#94a3b8" }}>Isang row bawat employee, numbered dependent columns</span>
+                  </button>
+                  <div style={{ height: 1, background: "rgba(1,63,153,0.06)" }} />
+                  <button
+                    onClick={() => { setExportMenuOpen(false); handleExportSQLite(); }}
+                    style={{ width: "100%", padding: "12px 16px", border: "none", background: "#fff", textAlign: "left", cursor: "pointer", display: "flex", flexDirection: "column", gap: 2 }}
+                    onMouseEnter={e => e.currentTarget.style.background = "#f6fbfe"}
+                    onMouseLeave={e => e.currentTarget.style.background = "#fff"}
+                  >
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "#0b1a3b" }}>SQLite Database (.sqlite)</span>
+                    <span style={{ fontSize: 11, color: "#94a3b8" }}>Parehong format ng "for ID", pero .sqlite file</span>
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
-
 
         {loading ? (
           <div style={{ padding: 40, textAlign: "center", color: "#94a3b8", fontSize: 13 }}>Loading employees...</div>
@@ -883,7 +897,7 @@ const filtered = employees.filter((emp) => {
                     {dependents.map((dep) => (
                       <div key={dep.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px", background: "#f6fbfe", borderRadius: 12, border: "1px solid rgba(1,63,153,0.08)" }}>
                         <div>
-                          <div style={{ fontSize: 14, fontWeight: 600, color: "#0b1a3b" }}>{dep.full_name}</div>
+                          <div style={{ fontSize: 14, fontWeight: 600, color: "#0b1a3b" }}>{formatDependentName(dep)}</div>
                           <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
                             {dep.relationship} {dep.birth_date && `· Born ${dep.birth_date}`}
                           </div>
@@ -892,8 +906,7 @@ const filtered = employees.filter((emp) => {
                         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                           <span style={{ padding: "4px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600, background: dep.hmo_status === "Active" ? "rgba(34,197,94,0.1)" : dep.hmo_status === "Pending" ? "rgba(243,207,71,0.15)" : "rgba(239,68,68,0.1)", color: dep.hmo_status === "Active" ? "#16a34a" : dep.hmo_status === "Pending" ? "#b8860b" : "#dc2626" }}>{dep.hmo_status}</span>
                           <button onClick={() => openEditDepForm(dep)} style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid rgba(1,63,153,0.2)", background: "#fff", color: "#013F99", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>Edit</button>
-                          {/* <button onClick={() => handleDeleteDependent(dep)} style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid rgba(239,68,68,0.2)", background: "#fff", color: "#dc2626", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>Delete</button> */}
-                                                     <button
+                          <button
                             onClick={() => handleDownloadDependentFiles(dep)}
                             disabled={!dep.id_document_url && !dep.birth_cert_url}
                             style={{
@@ -924,13 +937,21 @@ const filtered = employees.filter((emp) => {
             ) : (
               // DEPENDENT FORM
               <>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#0b1a3b", fontFamily: "'Montserrat', sans-serif", marginBottom: 12 }}>
+                 <div style={{ fontSize: 13, fontWeight: 700, color: "#0b1a3b", fontFamily: "'Montserrat', sans-serif", marginBottom: 12 }}>
                   {editingDepId ? "Edit Dependent" : "Add Dependent"}
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
                   <div style={fieldStyle}>
-                    <label style={labelStyle}>Full Name</label>
-                    <input type="text" value={depForm.full_name || ""} onChange={(e) => handleDepFormChange("full_name", e.target.value)} style={inputStyle} />
+                    <label style={labelStyle}>First Name</label>
+                    <input type="text" value={depForm.first_name || ""} onChange={(e) => handleDepFormChange("first_name", e.target.value)} style={inputStyle} />
+                  </div>
+                  <div style={fieldStyle}>
+                    <label style={labelStyle}>Middle Name</label>
+                    <input type="text" value={depForm.middle_name || ""} onChange={(e) => handleDepFormChange("middle_name", e.target.value)} style={inputStyle} placeholder="Optional" />
+                  </div>
+                  <div style={fieldStyle}>
+                    <label style={labelStyle}>Last Name</label>
+                    <input type="text" value={depForm.last_name || ""} onChange={(e) => handleDepFormChange("last_name", e.target.value)} style={inputStyle} />
                   </div>
                   <div style={fieldStyle}>
                     <label style={labelStyle}>Relationship</label>
@@ -951,11 +972,11 @@ const filtered = employees.filter((emp) => {
                   <div style={fieldStyle}>
                     <label style={labelStyle}>Gender</label>
                     <select value={depForm.gender || ""} onChange={(e) => handleDepFormChange("gender", e.target.value)} style={inputStyle}>
-                        <option value="">Select...</option>
-                        <option value="Male">Male</option>
-                        <option value="Female">Female</option>
+                      <option value="">Select...</option>
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
                     </select>
-                    </div>
+                  </div>
                   <div style={fieldStyle}>
                     <label style={labelStyle}>HMO Card Number</label>
                     <input type="text" value={depForm.hmo_card_number || ""} onChange={(e) => handleDepFormChange("hmo_card_number", e.target.value)} style={inputStyle} />
@@ -964,7 +985,7 @@ const filtered = employees.filter((emp) => {
                     <label style={labelStyle}>Effectivity Date</label>
                     <input type="date" value={depForm.effectivity_date || ""} onChange={(e) => handleDepFormChange("effectivity_date", e.target.value)} style={inputStyle} />
                   </div>
-                 <div style={{ gridColumn: "1 / -1", ...fieldStyle }}>
+                  <div style={{ gridColumn: "1 / -1", ...fieldStyle }}>
                     <label style={labelStyle}>Remarks</label>
                     <input type="text" value={depForm.remarks || ""} onChange={(e) => handleDepFormChange("remarks", e.target.value)} style={inputStyle} />
                   </div>
