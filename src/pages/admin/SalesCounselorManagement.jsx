@@ -3,6 +3,7 @@ import headerWave from '../../assets/header-wave.png';
 import cclpiLogo from '../../assets/cclpi-logo.jpg';
 import signatureImg from '../../assets/signature.png';
 import angelicaLogo from '../../assets/angelica.png';
+import QRCode from "qrcode";
 
 
 
@@ -10,6 +11,8 @@ const API_URL = import.meta.env.VITE_SALES_COUNSELOR_API_URL;
 // Set VITE_SALES_COUNSELOR_API_TOKEN in your .env file (and .env.example),
 // e.g. VITE_SALES_COUNSELOR_API_TOKEN=your-bearer-token-here
 const API_TOKEN = import.meta.env.VITE_SALES_COUNSELOR_API_TOKEN;
+
+const CARD_BASE_URL = window.location.origin + "/counselor";
 
 // Static company info for the printed welcome letter — edit once here.
 const COMPANY = {
@@ -107,6 +110,23 @@ export default function SalesCounselorManagement() {
   const total = counselors.length;
   const active = counselors.filter((sc) => isActiveValue(sc.expiry_date)).length;
   const expired = total - active;
+
+  const handleDownloadQr = async (sc) => {
+    const counselorUrl = `${CARD_BASE_URL}/${sc.id_no}`;
+    try {
+      const dataUrl = await QRCode.toDataURL(counselorUrl, {
+        width: 400,
+        margin: 1,
+        color: { dark: "#013F99", light: "#FFFFFF" },
+      });
+      const link = document.createElement("a");
+      link.download = `${sc.full_name?.replace(/\s+/g, "_") || sc.id_no}_QR.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      alert("Error generating QR: " + err.message);
+    }
+  };
 
   return (
     <div>
@@ -211,6 +231,10 @@ export default function SalesCounselorManagement() {
                                 <button onClick={() => setPrintData(sc)} style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid rgba(243,207,71,0.4)", background: "#fff", color: "#b8860b", fontSize: 11, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
                                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
                                   Print
+                                </button>
+                                <button onClick={() => handleDownloadQr(sc)} style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid rgba(1,63,153,0.2)", background: "#fff", color: "#013F99", fontSize: 11, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
+                                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><line x1="17" y1="17" x2="17" y2="21"/><line x1="21" y1="17" x2="21" y2="21"/><line x1="17" y1="21" x2="21" y2="21"/></svg>
+                                  QR
                                 </button>
                               </div>
                             </td>
