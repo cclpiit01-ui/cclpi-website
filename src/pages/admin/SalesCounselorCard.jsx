@@ -58,7 +58,7 @@ export default function SalesCounselorCard() {
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Poppins', sans-serif", flexDirection: "column", gap: 12, padding: 20, textAlign: "center" }}>
         <div style={{ fontSize: 40 }}>⚠️</div>
         <div style={{ fontSize: 16, fontWeight: 700, color: "#0b1a3b" }}>Sales counselor not found</div>
-        <div style={{ fontSize: 13, color: "#64748b" }}>Baka mali ang link o wala nang record na ito.</div>
+        <div style={{ fontSize: 13, color: "#64748b" }}>The link may be incorrect, or this record no longer exists.</div>
       </div>
     );
   }
