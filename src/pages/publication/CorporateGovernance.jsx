@@ -6,11 +6,12 @@ import QuickPublicationNav from "@/components/ui/QuickPublicationNav";
 import { getDocUrl, DOC_FOLDERS } from "@/lib/constants";
 
 const annualReports = [
-  { id: 1, year: "2024", file: getDocUrl(DOC_FOLDERS.GOVERNANCE, "Annual-Corporate-Governance-2024.pdf") },
-  { id: 2, year: "2023", file: getDocUrl(DOC_FOLDERS.GOVERNANCE, "Annual-Corporate-Governance-2023.pdf") },
-  { id: 3, year: "2022", file: getDocUrl(DOC_FOLDERS.GOVERNANCE, "Annual-Corporate-Governance-2022.pdf") },
-  { id: 4, year: "2021", file: getDocUrl(DOC_FOLDERS.GOVERNANCE, "Annual-Corporate-Governance-2021.pdf") },
-  { id: 5, year: "2020", file: getDocUrl(DOC_FOLDERS.GOVERNANCE, "Annual-Corporate-Governance-2020.pdf") },
+  { id: 1, year: "2025", file: getDocUrl(DOC_FOLDERS.GOVERNANCE, "Annual-Corporate-Governance-2025.pdf") },
+  { id: 2, year: "2024", file: getDocUrl(DOC_FOLDERS.GOVERNANCE, "Annual-Corporate-Governance-2024.pdf") },
+  { id: 3, year: "2023", file: getDocUrl(DOC_FOLDERS.GOVERNANCE, "Annual-Corporate-Governance-2023.pdf") },
+  { id: 4, year: "2022", file: getDocUrl(DOC_FOLDERS.GOVERNANCE, "Annual-Corporate-Governance-2022.pdf") },
+  { id: 5, year: "2021", file: getDocUrl(DOC_FOLDERS.GOVERNANCE, "Annual-Corporate-Governance-2021.pdf") },
+  { id: 6, year: "2020", file: getDocUrl(DOC_FOLDERS.GOVERNANCE, "Annual-Corporate-Governance-2020.pdf") },
 ];
 const CG_MANUAL = getDocUrl(DOC_FOLDERS.GOVERNANCE, "Corporate-Governance-Manual.pdf");
 

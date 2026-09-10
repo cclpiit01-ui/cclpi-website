@@ -8,11 +8,12 @@ import { getDocUrl, DOC_FOLDERS } from "@/lib/constants";
 
 
 const minutesList = [
-  { id: 1, title: "7th Annual Stockholders Meeting", file: getDocUrl(DOC_FOLDERS.MINUTES, "7th-ASM-Minutes.pdf"), meeting: "7th" },
-  { id: 2, title: "6th Annual Stockholders Meeting", file: getDocUrl(DOC_FOLDERS.MINUTES, "6th-ASM-Minutes.pdf"), meeting: "6th" },
-  { id: 3, title: "5th Annual Stockholders Meeting", file: getDocUrl(DOC_FOLDERS.MINUTES, "5th-ASM-Minutes.pdf"), meeting: "5th" },
-  { id: 4, title: "4th Annual Stockholders Meeting", file: getDocUrl(DOC_FOLDERS.MINUTES, "4th-ASM-Minutes.pdf"), meeting: "4th" },
-  { id: 5, title: "3rd Annual Stockholders Meeting", file: getDocUrl(DOC_FOLDERS.MINUTES, "3rd-ASM-Minutes.pdf"), meeting: "3rd" },
+  { id: 1, title: "8th Annual Stockholders Meeting", file: getDocUrl(DOC_FOLDERS.MINUTES, "8th-ASM-Minutes.pdf"), meeting: "7th" },
+  { id: 2, title: "7th Annual Stockholders Meeting", file: getDocUrl(DOC_FOLDERS.MINUTES, "7th-ASM-Minutes.pdf"), meeting: "7th" },
+  { id: 3, title: "6th Annual Stockholders Meeting", file: getDocUrl(DOC_FOLDERS.MINUTES, "6th-ASM-Minutes.pdf"), meeting: "6th" },
+  { id: 4, title: "5th Annual Stockholders Meeting", file: getDocUrl(DOC_FOLDERS.MINUTES, "5th-ASM-Minutes.pdf"), meeting: "5th" },
+  { id: 5, title: "4th Annual Stockholders Meeting", file: getDocUrl(DOC_FOLDERS.MINUTES, "4th-ASM-Minutes.pdf"), meeting: "4th" },
+  { id: 6, title: "3rd Annual Stockholders Meeting", file: getDocUrl(DOC_FOLDERS.MINUTES, "3rd-ASM-Minutes.pdf"), meeting: "3rd" },
 ];
 
 export default function Minutes() {

@@ -6,14 +6,16 @@ import QuickPublicationNav from "@/components/ui/QuickPublicationNav";
 import { getDocUrl, DOC_FOLDERS } from "@/lib/constants";
 
 const reports = [
-  { id: 1, year: "2024", file: getDocUrl(DOC_FOLDERS.REPORTS, "Annual-Report-2024.pdf") },
-  { id: 2, year: "2023", file: getDocUrl(DOC_FOLDERS.REPORTS, "Annual-Report-2023.pdf") },
-  { id: 3, year: "2022", file: getDocUrl(DOC_FOLDERS.REPORTS, "Annual-Report-2022.pdf") },
-  { id: 4, year: "2021", file: getDocUrl(DOC_FOLDERS.REPORTS, "Annual-Report-2021.pdf") },
-  { id: 5, year: "2020", file: getDocUrl(DOC_FOLDERS.REPORTS, "Annual-Report-2020.pdf") },
-  { id: 6, year: "2019", file: getDocUrl(DOC_FOLDERS.REPORTS, "Annual-Report-2019.pdf") },
-  { id: 7, year: "2018", file: getDocUrl(DOC_FOLDERS.REPORTS, "Annual-Report-2018.pdf") },
-  { id: 8, year: "2017", file: getDocUrl(DOC_FOLDERS.REPORTS, "Annual-Report-2017.pdf") },
+  { id: 1, year: "2025", file: getDocUrl(DOC_FOLDERS.REPORTS, "Annual-Report-2025.pdf") },
+  { id: 2, year: "2024", file: getDocUrl(DOC_FOLDERS.REPORTS, "Annual-Report-2024.pdf") },
+  { id: 3, year: "2023", file: getDocUrl(DOC_FOLDERS.REPORTS, "Annual-Report-2023.pdf") },
+  { id: 4, year: "2022", file: getDocUrl(DOC_FOLDERS.REPORTS, "Annual-Report-2022.pdf") },
+  { id: 5, year: "2021", file: getDocUrl(DOC_FOLDERS.REPORTS, "Annual-Report-2021.pdf") },
+  { id: 6, year: "2020", file: getDocUrl(DOC_FOLDERS.REPORTS, "Annual-Report-2020.pdf") },
+  { id: 7, year: "2019", file: getDocUrl(DOC_FOLDERS.REPORTS, "Annual-Report-2019.pdf") },
+  { id: 8, year: "2018", file: getDocUrl(DOC_FOLDERS.REPORTS, "Annual-Report-2018.pdf") },
+  { id: 9, year: "2017", file: getDocUrl(DOC_FOLDERS.REPORTS, "Annual-Report-2017.pdf") },
+  
 ];
 
 

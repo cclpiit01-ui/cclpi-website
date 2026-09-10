@@ -340,10 +340,9 @@ export default function HMOManagement() {
       const binaryArray = db.export();
       const blob = new Blob([binaryArray], { type: "application/x-sqlite3" });
       const url = window.URL.createObjectURL(blob);
-      const dateStr = new Date().toISOString().split("T")[0];
       const a = document.createElement("a");
       a.href = url;
-      a.download = `HMO_ID_Export_${dateStr}.sqlite`;
+      a.download = `HMO_ID_Export.sqlite`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

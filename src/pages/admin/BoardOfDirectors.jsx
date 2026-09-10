@@ -113,7 +113,7 @@ const handleSave = async () => {
         .limit(1)
         .maybeSingle();
 
-      let imageUrl = existing?.image_url;
+      let imageUrl = existing?.image_url?.trim();
 
       // Kung wala pa, i-trigger ang n8n webhook para mag-generate
       if (!imageUrl) {
@@ -135,7 +135,7 @@ const handleSave = async () => {
           return;
         }
 
-        imageUrl = result.image_url;
+        imageUrl = result.image_url?.trim();
       }
 
       // I-download bilang blob (para hindi mag-open sa bagong tab)
