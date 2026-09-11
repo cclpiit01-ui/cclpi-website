@@ -16,14 +16,13 @@ import phcci from "@/assets/stockholders/phcci.png";
 import sanfernando from "@/assets/stockholders/sanfernando.png";
 import scc from "@/assets/stockholders/scc.png";
 import stalucia from "@/assets/stockholders/stalucia.png";
-import tagum from "@/assets/stockholders/tagum.png";
 import tanHassani from "@/assets/stockholders/tan-hassani.png";
 import toril from "@/assets/stockholders/toril.png";
 
 
 
 
-const logos = [climbs, cosmo, oic, acdi, aimcoop, bdmpc, cifc, guadalupe, incomeDavao, metroOrmoc, phcci, sanfernando, scc, stalucia, tagum, tanHassani,  toril];
+const logos = [climbs, cosmo, oic, acdi, aimcoop, bdmpc, cifc, guadalupe, incomeDavao, metroOrmoc, phcci, sanfernando, scc, stalucia, tanHassani,  toril];
 
 export default function Footer() {
   return (
