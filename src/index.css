@@ -18,4 +18,14 @@ body {
   overflow-x: hidden;
   max-width: 100%;
 }
+
+/* Pilitin na hindi ma-click ang mga inactive/hidden Swiper fade slides,
+   kahit may inline pointer-events na naka-set ang ibang libraries (hal. Framer Motion Reveal) */
+.swiper-slide:not(.swiper-slide-active) {
+  pointer-events: none !important;
+}
+
+.swiper-slide:not(.swiper-slide-active) * {
+  pointer-events: none !important;
+}
  

@@ -55,7 +55,7 @@ const BannerThree = () => {
 
           {/* CTA Button */}
           <Reveal direction="up" delay={0.4}>
-            <div className="mt-10 relative z-50">
+            <div className="mt-10 relative">
               
                 <Link
                 to="/products/claims"
