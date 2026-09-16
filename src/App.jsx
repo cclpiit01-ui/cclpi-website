@@ -65,7 +65,7 @@ export default function App() {
            {/* Public links */}
           <Route path="/rsvp/:slug" element={<EventRSVP />} />
           <Route path="/card/:slug" element={<DigitalCard />} />
-          <Route path="/counselor/:id" element={<SalesCounselorCard />} />
+          <Route path="/sales-counselor/:id" element={<SalesCounselorCard />} />
 
           <Route path="/unauthorized" element={
             <div className="flex h-screen items-center justify-center">

@@ -4,6 +4,8 @@ import cclpiLogo from '../../assets/cclpi-logo.jpg';
 import signatureImg from '../../assets/signature.png';
 import angelicaLogo from '../../assets/angelica.png';
 import QRCode from "qrcode";
+import initSqlJs from "sql.js";
+import sqlWasmUrl from "sql.js/dist/sql-wasm.wasm?url";
 
 
 
@@ -12,7 +14,7 @@ const API_URL = import.meta.env.VITE_SALES_COUNSELOR_API_URL;
 // e.g. VITE_SALES_COUNSELOR_API_TOKEN=your-bearer-token-here
 const API_TOKEN = import.meta.env.VITE_SALES_COUNSELOR_API_TOKEN;
 
-const CARD_BASE_URL = window.location.origin + "/counselor";
+const CARD_BASE_URL = window.location.origin + "/sales-counselor";
 
 // Static company info for the printed welcome letter — edit once here.
 const COMPANY = {
@@ -24,6 +26,46 @@ const COMPANY = {
   signatoryName: "Mansueto V. Dela Peña",
   signatoryTitle: "President & CEO",
 };
+
+// --- Counselor code obfuscation -------------------------------------------
+// Turns "M-00000" into an opaque URL-safe token so counselor codes can't be
+// guessed/enumerated by editing the URL (e.g. /counselor/M-00001,
+// /counselor/M-00002, ...). This is XOR + base64url, NOT real encryption —
+// anyone reading the deployed JS bundle can find the key and reverse it.
+// It's meant to stop casual guessing, not a determined attacker.
+// Move this key to an env var (e.g. VITE_QR_OBFUSCATION_KEY) if you want it
+// out of the source file; either way, change it from the placeholder below.
+const OBFUSCATION_KEY = import.meta.env.VITE_QR_OBFUSCATION_KEY || "cclpi-sc-2024-secure";
+
+function encodeCounselorId(id) {
+  if (!id) return "";
+  let result = "";
+  for (let i = 0; i < id.length; i++) {
+    result += String.fromCharCode(
+      id.charCodeAt(i) ^ OBFUSCATION_KEY.charCodeAt(i % OBFUSCATION_KEY.length)
+    );
+  }
+  return btoa(result).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function decodeCounselorId(encoded) {
+  if (!encoded) return "";
+  const base64 = encoded.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
+  const decoded = atob(padded);
+  let result = "";
+  for (let i = 0; i < decoded.length; i++) {
+    result += String.fromCharCode(
+      decoded.charCodeAt(i) ^ OBFUSCATION_KEY.charCodeAt(i % OBFUSCATION_KEY.length)
+    );
+  }
+  return result;
+}
+
+function getCounselorUrl(idNo) {
+  return `${CARD_BASE_URL}/${encodeCounselorId(idNo)}`;
+}
+// ---------------------------------------------------------------------------
 
 // Treats "1", "true", or anything starting with "y" (case-insensitive) as paid.
 // (Kept for reference in the profile detail grid — no longer drives the status badge.)
@@ -112,7 +154,7 @@ export default function SalesCounselorManagement() {
   const expired = total - active;
 
   const handleDownloadQr = async (sc) => {
-    const counselorUrl = `${CARD_BASE_URL}/${sc.id_no}`;
+    const counselorUrl = getCounselorUrl(sc.id_no);
     try {
       const dataUrl = await QRCode.toDataURL(counselorUrl, {
         width: 400,
@@ -125,6 +167,111 @@ export default function SalesCounselorManagement() {
       link.click();
     } catch (err) {
       alert("Error generating QR: " + err.message);
+    }
+  };
+
+  const escapeCSV = (val) => {
+    if (val === null || val === undefined) return "";
+    const str = String(val);
+    if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+      return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+  };
+
+  const EXPORT_COLUMNS = [
+    "id_no", "full_name", "birthday", "address", "validity_date",
+    "is_paid", "or_date", "picture", "signature", "date_released",
+    "position", "manager", "agency", "qr_link",
+  ];
+
+  const getExportRow = (sc) => ({
+    id_no: sc.id_no,
+    full_name: sc.full_name,
+    birthday: sc.birthday,
+    address: sc.address,
+    validity_date: sc.expiry_date, // normalized field, mapped back to original column name
+    is_paid: sc.is_paid,
+    or_date: sc.or_date,
+    picture: sc.picture,
+    signature: sc.signature,
+    date_released: sc.date_released,
+    position: sc.position,
+    manager: sc.manager,
+    agency: sc.agency,
+    qr_link: getCounselorUrl(sc.id_no),
+  });
+
+  const handleExportCSV = () => {
+    const rows = filtered.map(getExportRow);
+    const csvBody = rows.map((row) =>
+      EXPORT_COLUMNS.map((col) => escapeCSV(row[col])).join(",")
+    );
+    const csv = [EXPORT_COLUMNS.join(","), ...csvBody].join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `sales_counselors_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  };
+
+  const handleExportSQLite = async () => {
+    try {
+      const SQL = await initSqlJs({
+        locateFile: () => sqlWasmUrl,
+      });
+
+      const db = new SQL.Database();
+
+      db.run(`
+        CREATE TABLE sales_counselors (
+          id_no TEXT,
+          full_name TEXT,
+          birthday TEXT,
+          address TEXT,
+          validity_date TEXT,
+          is_paid TEXT,
+          or_date TEXT,
+          picture TEXT,
+          signature TEXT,
+          date_released TEXT,
+          position TEXT,
+          manager TEXT,
+          agency TEXT,
+          qr_link TEXT
+        );
+      `);
+
+      const placeholders = EXPORT_COLUMNS.map(() => "?").join(", ");
+      const stmt = db.prepare(
+        `INSERT INTO sales_counselors (${EXPORT_COLUMNS.join(", ")}) VALUES (${placeholders})`
+      );
+
+      filtered.forEach((sc) => {
+        const row = getExportRow(sc);
+        stmt.run(
+          EXPORT_COLUMNS.map((col) => {
+            const value = row[col];
+            return value === undefined || value === "" ? null : value;
+          })
+        );
+      });
+
+      stmt.free();
+
+      const data = db.export();
+      db.close();
+
+      const blob = new Blob([data], { type: "application/vnd.sqlite3" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `sales_counselors_${new Date().toISOString().slice(0, 10)}.sqlite`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+    } catch (err) {
+      console.error("SQLite export failed:", err);
+      alert("Error exporting SQLite database: " + err.message);
     }
   };
 
@@ -187,6 +334,18 @@ export default function SalesCounselorManagement() {
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
               Refresh
             </button>
+
+            <button onClick={handleExportCSV}
+              style={{ padding: "9px 18px", borderRadius: 10, border: "1px solid rgba(1,63,153,0.12)", background: "#fff", color: "#013F99", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "'Poppins', sans-serif", display: "flex", alignItems: "center", gap: 6 }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Export CSV
+            </button>
+
+            <button onClick={handleExportSQLite}
+              style={{ padding: "9px 18px", borderRadius: 10, border: "1px solid rgba(1,63,153,0.12)", background: "#fff", color: "#013F99", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "'Poppins', sans-serif", display: "flex", alignItems: "center", gap: 6 }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Export SQLite
+            </button>
           </div>
 
           {loading ? (
@@ -224,7 +383,7 @@ export default function SalesCounselorManagement() {
                             </td>
                             <td style={{ padding: "12px 16px" }}>
                               <div style={{ display: "flex", gap: 8 }}>
-                                <button onClick={() => window.open(`/counselor/${sc.id_no}`, "_blank")} style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid rgba(76,177,233,0.3)", background: "#fff", color: "#4CB1E9", fontSize: 11, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
+                                <button onClick={() => window.open(getCounselorUrl(sc.id_no), "_blank")} style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid rgba(76,177,233,0.3)", background: "#fff", color: "#4CB1E9", fontSize: 11, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
                                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                                   View
                                 </button>
