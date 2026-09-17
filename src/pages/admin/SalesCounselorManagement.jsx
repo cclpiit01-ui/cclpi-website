@@ -185,31 +185,73 @@ export default function SalesCounselorManagement() {
     setSyncing(false);
   };
 
-  const testCardExchangeConnection = async () => {
+const syncCardExchange = async () => {
   try {
-    const response = await fetch(
-      "http://localhost:3001/connection-test"
+    // IMPORTANT:
+    // Current filtered results only.
+    // Hindi paginated at hindi lahat ng counselors.
+    const recordsToSync = filtered.map(getExportRow);
+
+    if (recordsToSync.length === 0) {
+      alert(
+        "No records found using the current filters.\n\n" +
+        "CardExchange database was not changed."
+      );
+      return;
+    }
+
+    // Confirmation before replacing local SQLite contents
+    const confirmed = window.confirm(
+      `Sync ${recordsToSync.length} record(s) to CardExchange?\n\n` +
+      `The current local CardExchange records will be replaced ` +
+      `with the records matching your current filters.`
     );
 
-    if (!response.ok) {
-      throw new Error(
-        `Local service returned HTTP ${response.status}`
-      );
+    if (!confirmed) {
+      return;
     }
+
+    const response = await fetch(
+      "http://localhost:3001/sync",
+      {
+        method: "POST",
+
+        headers: {
+          "Content-Type": "application/json",
+        },
+
+        body: JSON.stringify({
+          records: recordsToSync,
+        }),
+      }
+    );
 
     const result = await response.json();
 
-    alert(result.message);
+    if (!response.ok) {
+      throw new Error(
+        result.message || "CardExchange sync failed."
+      );
+    }
 
-    console.log("CardExchange connection:", result);
-
-  } catch (error) {
-    console.error("CardExchange connection failed:", error);
+    console.log("CardExchange sync result:", result);
 
     alert(
-      "Cannot connect to CardExchange Local Service.\n\n" +
-      "Make sure node server.js is running.\n\n" +
-      error.message
+      `CardExchange Sync Complete!\n\n` +
+      `${result.syncedRecords} record(s) synced successfully.\n\n` +
+      `A backup of the previous database was created.`
+    );
+
+  } catch (error) {
+    console.error(
+      "CardExchange sync failed:",
+      error
+    );
+
+    alert(
+      "CardExchange Sync Failed!\n\n" +
+      error.message +
+      "\n\nMake sure the CardExchange Local Service is running."
     );
   }
 };
@@ -465,7 +507,7 @@ export default function SalesCounselorManagement() {
             </button>
 
             <button
-  onClick={testCardExchangeConnection}
+  onClick={syncCardExchange}
   style={{
     padding: "9px 18px",
     borderRadius: 10,
