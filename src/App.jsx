@@ -42,6 +42,7 @@ import EventManagement from "@/pages/admin/EventManagement";
 import DigitalCard from "@/pages/admin/DigitalCard";
 import SalesCounselorCard from "@/pages/admin/SalesCounselorCard";
 import CardManagement from "@/pages/admin/CardManagement";
+import SyncSalesCounselors from "@/pages/admin/SyncSalesCounselors";
 
 export default function App() {
   return (
@@ -60,6 +61,7 @@ export default function App() {
             <Route path="/admin/hmo" element={<HMOManagement />} />
             <Route path="/admin/events" element={<EventManagement />} />
             <Route path="/admin/cards" element={<CardManagement />} />
+            <Route path="sync-sales-counselors" element={<SyncSalesCounselors />} />
           </Route>
 
            {/* Public links */}

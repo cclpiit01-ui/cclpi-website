@@ -1,14 +1,13 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import CCLPILogo from "@/assets/logo-box.png";
-
-const API_URL = import.meta.env.VITE_SALES_COUNSELOR_API_URL;
-const API_TOKEN = import.meta.env.VITE_SALES_COUNSELOR_API_TOKEN;
+import { supabaseEmployees } from "@/lib/supabaseEmployees";
 
 // Must match the OBFUSCATION_KEY used in SalesCounselorManagement.jsx when
 // generating the link/QR code, or decoding here will produce garbage.
 // If you moved the key to an env var there, use the same env var here.
 const OBFUSCATION_KEY = import.meta.env.VITE_QR_OBFUSCATION_KEY || "cclpi-sc-2024-secure";
+const SC_TABLE = "sales_counselors";
 
 function decodeCounselorId(encoded) {
   if (!encoded) return "";
@@ -56,20 +55,19 @@ export default function SalesCounselorCard() {
           return;
         }
 
-        const res = await fetch(API_URL, {
-          method: "GET",
-          headers: { Authorization: `Bearer ${API_TOKEN}` },
-        });
-        if (!res.ok) throw new Error();
-        const json = await res.json();
-        const rows = Array.isArray(json) ? json : (json.data || []);
-        const normalized = rows.map((r) => ({
-          ...r,
-          expiry_date: r.expiry_date ?? r.validity_date ?? null,
-        }));
-        const match = normalized.find((row) => row.id_no === actualIdNo);
-        if (!match) setNotFound(true);
-        else setSc(match);
+        // Single indexed lookup against Supabase — id_no is the primary
+        // key, so this is one fast row fetch, not a scan of the whole
+        // table. This also replaced fetching the ENTIRE main API dataset
+        // (5,000+ rows) just to .find() one record client-side, which was
+        // why this page used to feel slow to open.
+        const { data, error } = await supabaseEmployees
+          .from(SC_TABLE)
+          .select("*")
+          .eq("id_no", actualIdNo)
+          .maybeSingle();
+
+        if (error || !data) setNotFound(true);
+        else setSc(data);
       } catch {
         setNotFound(true);
       }

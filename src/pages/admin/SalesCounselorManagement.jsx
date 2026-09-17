@@ -6,15 +6,20 @@ import angelicaLogo from '../../assets/angelica.png';
 import QRCode from "qrcode";
 import initSqlJs from "sql.js";
 import sqlWasmUrl from "sql.js/dist/sql-wasm.wasm?url";
+import { supabaseEmployees } from "@/lib/supabaseEmployees";
+import { runSync } from "@/pages/admin/SyncSalesCounselors";
 
-
-
-const API_URL = import.meta.env.VITE_SALES_COUNSELOR_API_URL;
-// Set VITE_SALES_COUNSELOR_API_TOKEN in your .env file (and .env.example),
-// e.g. VITE_SALES_COUNSELOR_API_TOKEN=your-bearer-token-here
-const API_TOKEN = import.meta.env.VITE_SALES_COUNSELOR_API_TOKEN;
+/**
+ * This page reads ONLY from Supabase now — it never calls the main
+ * Sales Counselor API directly. Keeping Supabase caught up with new
+ * counselors from that API is SyncSalesCounselors.jsx's job (run it
+ * manually or on a schedule); this file just displays/edits what's
+ * already in Supabase, which keeps it fast regardless of how many
+ * thousand records exist.
+ */
 
 const CARD_BASE_URL = window.location.origin + "/sales-counselor";
+const SC_TABLE = "sales_counselors";
 
 // Static company info for the printed welcome letter — edit once here.
 const COMPANY = {
@@ -95,30 +100,68 @@ export default function SalesCounselorManagement() {
   const [sortOrder, setSortOrder] = useState("asc");
   const itemsPerPage = 10;
 
-
   const [printData, setPrintData] = useState(null);
 
+  // --- Editable extras (Supabase) -----------------------------------------
+  const [editModal, setEditModal] = useState(false);
+  const [editData, setEditData] = useState(null);
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  // --- Row action menu (⋮ dropdown instead of 4 inline buttons) ----------
+  const [openMenuId, setOpenMenuId] = useState(null);
+  // --- Export dropdown (combines CSV + SQLite into one button) -----------
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  // --- Refresh = run the main-API sync, then reload from Supabase --------
+  const [syncing, setSyncing] = useState(false);
+
+  // Close the open row menu / export menu on any click outside them.
+  useEffect(() => {
+    if (!openMenuId && !exportMenuOpen) return;
+    const closeMenus = () => { setOpenMenuId(null); setExportMenuOpen(false); };
+    document.addEventListener("click", closeMenus);
+    return () => document.removeEventListener("click", closeMenus);
+  }, [openMenuId, exportMenuOpen]);
+
   useEffect(() => { fetchCounselors(); }, []);
+
+  // Supabase is now the single source this page reads from — no more main
+  // API calls here at all, so this stays fast no matter how many thousand
+  // records exist. New counselors from the main API arrive via
+  // SyncSalesCounselors.jsx, run separately (button or schedule).
+  //
+  // PostgREST (Supabase's API layer) caps every request at 1000 rows by
+  // default, silently — no error, it just returns the first 1000 and
+  // stops. With 5,000+ sales counselors, a single select("*") call only
+  // ever returns the first batch. This loops with .range() until a page
+  // comes back with fewer rows than the page size, meaning we've reached
+  // the end.
+  const fetchAllRows = async () => {
+    const PAGE_SIZE = 1000;
+    let allRows = [];
+    let from = 0;
+
+    while (true) {
+      const { data, error } = await supabaseEmployees
+        .from(SC_TABLE)
+        .select("*")
+        .order("full_name", { ascending: true })
+        .range(from, from + PAGE_SIZE - 1);
+      if (error) throw error;
+
+      allRows = allRows.concat(data || []);
+      if (!data || data.length < PAGE_SIZE) break; // last page reached
+      from += PAGE_SIZE;
+    }
+
+    return allRows;
+  };
 
   const fetchCounselors = async () => {
     setLoading(true);
     setErrorMsg(null);
     try {
-      const res = await fetch(API_URL, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${API_TOKEN}`,
-        },
-      });
-      if (!res.ok) throw new Error(`Request failed (${res.status})`);
-      const json = await res.json();
-      const rows = Array.isArray(json) ? json : (json.data || []);
-      // Normalize: API returns "validity_date" — UI expects "expiry_date"
-      const normalized = rows.map((r) => ({
-        ...r,
-        expiry_date: r.expiry_date ?? r.validity_date ?? null,
-      }));
-      setCounselors(normalized);
+      const data = await fetchAllRows();
+      setCounselors(data || []);
     } catch (err) {
       setErrorMsg(err.message || "Failed to load sales counselors.");
       setCounselors([]);
@@ -126,11 +169,81 @@ export default function SalesCounselorManagement() {
     setLoading(false);
   };
 
-  // Client-side sort by date_released since the API doesn't support ?order params here.
+  // Refresh now does two things: pull any new/changed data from the main
+  // API into Supabase first (via the same runSync used by
+  // SyncSalesCounselors.jsx), then reload this page's list from Supabase
+  // so the table reflects it. Stays on this page — no navigation.
+  const handleRefresh = async () => {
+    setSyncing(true);
+    try {
+      await runSync();
+    } catch (err) {
+      console.error("Sync failed:", err.message);
+      alert("Couldn't sync from the main API: " + err.message + "\n\nShowing existing Supabase data instead.");
+    }
+    await fetchCounselors();
+    setSyncing(false);
+  };
+
+  const testCardExchangeConnection = async () => {
+  try {
+    const response = await fetch(
+      "http://localhost:3001/connection-test"
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        `Local service returned HTTP ${response.status}`
+      );
+    }
+
+    const result = await response.json();
+
+    alert(result.message);
+
+    console.log("CardExchange connection:", result);
+
+  } catch (error) {
+    console.error("CardExchange connection failed:", error);
+
+    alert(
+      "Cannot connect to CardExchange Local Service.\n\n" +
+      "Make sure node server.js is running.\n\n" +
+      error.message
+    );
+  }
+};
+
+  const openEdit = (sc) => {
+    setEditData({ id_no: sc.id_no, full_name: sc.full_name, position: sc.position || "", date_release: sc.date_release || "" });
+    setEditModal(true);
+  };
+
+  const handleSaveEdit = async () => {
+    setSavingEdit(true);
+    try {
+      const { error } = await supabaseEmployees
+        .from(SC_TABLE)
+        .update({ position: editData.position || null, date_release: editData.date_release || null })
+        .eq("id_no", editData.id_no);
+      if (error) throw error;
+      setEditModal(false);
+      fetchCounselors();
+    } catch (err) {
+      alert("Error saving: " + err.message);
+    }
+    setSavingEdit(false);
+  };
+
+  // Client-side sort by id_no — these are sequential (M-00000, M-00001, ...)
+  // in creation order, so sorting by id_no doubles as Oldest/Newest First.
+  // Unlike created_at or date_release, id_no is always present on every
+  // existing record today, so the toggle actually works right now instead
+  // of only for rows added after some future column exists.
   const sorted = [...counselors].sort((a, b) => {
-    const da = a.date_released ? new Date(a.date_released).getTime() : 0;
-    const db = b.date_released ? new Date(b.date_released).getTime() : 0;
-    return sortOrder === "asc" ? da - db : db - da;
+    const idA = a.id_no || "";
+    const idB = b.id_no || "";
+    return sortOrder === "asc" ? idA.localeCompare(idB) : idB.localeCompare(idA);
   });
 
   const filtered = sorted.filter((sc) => {
@@ -165,6 +278,17 @@ export default function SalesCounselorManagement() {
       link.download = `${sc.full_name?.replace(/\s+/g, "_") || sc.id_no}_QR.png`;
       link.href = dataUrl;
       link.click();
+
+      // Persist the link too, so it's on record in Supabase and not just a
+      // one-off download — future loads/exports can reference sc.qr_link.
+      // The row already exists (inserted by SyncSalesCounselors), so this
+      // is a plain update, not an upsert.
+      const { error } = await supabaseEmployees
+        .from(SC_TABLE)
+        .update({ qr_link: counselorUrl })
+        .eq("id_no", sc.id_no);
+      if (error) console.error("Saving qr_link failed:", error.message);
+      else setCounselors((prev) => prev.map((c) => c.id_no === sc.id_no ? { ...c, qr_link: counselorUrl } : c));
     } catch (err) {
       alert("Error generating QR: " + err.message);
     }
@@ -195,11 +319,11 @@ export default function SalesCounselorManagement() {
     or_date: sc.or_date,
     picture: sc.picture,
     signature: sc.signature,
-    date_released: sc.date_released,
+    date_released: sc.date_release,
     position: sc.position,
     manager: sc.manager,
     agency: sc.agency,
-    qr_link: getCounselorUrl(sc.id_no),
+    qr_link: sc.qr_link || getCounselorUrl(sc.id_no),
   });
 
   const handleExportCSV = () => {
@@ -275,9 +399,14 @@ export default function SalesCounselorManagement() {
     }
   };
 
+  const inputStyle = { padding: "10px 14px", border: "1px solid rgba(1,63,153,0.15)", borderRadius: 8, fontSize: 13, color: "#0b1a3b", outline: "none", fontFamily: "'Poppins', sans-serif", width: "100%", boxSizing: "border-box", background: "#fafcff" };
+  const fieldStyle = { display: "flex", flexDirection: "column", gap: 6 };
+  const labelStyle = { fontSize: 11, fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.8 };
+
   return (
     <div>
       <style>{PRINT_CSS}</style>
+      <style>{SPIN_CSS}</style>
 
       <div className="no-print">
         <div style={{ marginBottom: 28 }}>
@@ -329,23 +458,59 @@ export default function SalesCounselorManagement() {
               {sortOrder === "asc" ? "Oldest First" : "Newest First"}
             </button>
 
-            <button onClick={fetchCounselors}
-              style={{ padding: "9px 18px", borderRadius: 10, border: "none", background: "linear-gradient(90deg, #013F99, #4CB1E9)", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "'Poppins', sans-serif", display: "flex", alignItems: "center", gap: 6 }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-              Refresh
+            <button onClick={handleRefresh} disabled={syncing}
+              style={{ padding: "9px 18px", borderRadius: 10, border: "none", background: syncing ? "#94a3b8" : "linear-gradient(90deg, #013F99, #4CB1E9)", color: "#fff", fontSize: 12, fontWeight: 600, cursor: syncing ? "not-allowed" : "pointer", fontFamily: "'Poppins', sans-serif", display: "flex", alignItems: "center", gap: 6 }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ animation: syncing ? "spin 1s linear infinite" : "none" }}><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+              {syncing ? "Syncing..." : "Refresh"}
             </button>
 
-            <button onClick={handleExportCSV}
-              style={{ padding: "9px 18px", borderRadius: 10, border: "1px solid rgba(1,63,153,0.12)", background: "#fff", color: "#013F99", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "'Poppins', sans-serif", display: "flex", alignItems: "center", gap: 6 }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              Export CSV
-            </button>
+            <button
+  onClick={testCardExchangeConnection}
+  style={{
+    padding: "9px 18px",
+    borderRadius: 10,
+    border: "none",
+    background: "#16a34a",
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: 600,
+    cursor: "pointer",
+    fontFamily: "'Poppins', sans-serif",
+  }}
+>
+  Test CardExchange
+</button>
 
-            <button onClick={handleExportSQLite}
-              style={{ padding: "9px 18px", borderRadius: 10, border: "1px solid rgba(1,63,153,0.12)", background: "#fff", color: "#013F99", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "'Poppins', sans-serif", display: "flex", alignItems: "center", gap: 6 }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              Export SQLite
-            </button>
+            <div style={{ position: "relative" }}>
+              <button
+                onClick={(e) => { e.stopPropagation(); setExportMenuOpen((v) => !v); }}
+                style={{ padding: "9px 18px", borderRadius: 10, border: "1px solid rgba(1,63,153,0.12)", background: "#fff", color: "#013F99", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "'Poppins', sans-serif", display: "flex", alignItems: "center", gap: 6 }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Export
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+
+              {exportMenuOpen && (
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    position: "absolute", left: 0, top: "100%", marginTop: 4,
+                    background: "#fff", borderRadius: 10, border: "1px solid rgba(1,63,153,0.12)",
+                    boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 20,
+                    minWidth: 160, overflow: "hidden",
+                  }}
+                >
+                  <MenuItem onClick={() => { handleExportCSV(); setExportMenuOpen(false); }} color="#013F99">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Export as CSV
+                  </MenuItem>
+                  <MenuItem onClick={() => { handleExportSQLite(); setExportMenuOpen(false); }} color="#013F99">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Export as SQLite
+                  </MenuItem>
+                </div>
+              )}
+            </div>
           </div>
 
           {loading ? (
@@ -381,21 +546,51 @@ export default function SalesCounselorManagement() {
                             <td style={{ padding: "12px 16px" }}>
                               <span style={{ padding: "4px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600, background: activeRow ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)", color: activeRow ? "#16a34a" : "#dc2626" }}>{activeRow ? "Active" : "Expired"}</span>
                             </td>
-                            <td style={{ padding: "12px 16px" }}>
-                              <div style={{ display: "flex", gap: 8 }}>
-                                <button onClick={() => window.open(getCounselorUrl(sc.id_no), "_blank")} style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid rgba(76,177,233,0.3)", background: "#fff", color: "#4CB1E9", fontSize: 11, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
-                                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                                  View
-                                </button>
-                                <button onClick={() => setPrintData(sc)} style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid rgba(243,207,71,0.4)", background: "#fff", color: "#b8860b", fontSize: 11, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
-                                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-                                  Print
-                                </button>
-                                <button onClick={() => handleDownloadQr(sc)} style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid rgba(1,63,153,0.2)", background: "#fff", color: "#013F99", fontSize: 11, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
-                                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><line x1="17" y1="17" x2="17" y2="21"/><line x1="21" y1="17" x2="21" y2="21"/><line x1="17" y1="21" x2="21" y2="21"/></svg>
-                                  QR
-                                </button>
-                              </div>
+                            <td style={{ padding: "12px 16px", position: "relative" }}>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenMenuId((prev) => (prev === sc.id_no ? null : sc.id_no));
+                                }}
+                                style={{
+                                  width: 32, height: 32, borderRadius: 8,
+                                  border: "1px solid rgba(1,63,153,0.15)", background: "#fff",
+                                  color: "#013F99", cursor: "pointer",
+                                  display: "flex", alignItems: "center", justifyContent: "center",
+                                }}
+                                title="Actions"
+                              >
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>
+                              </button>
+
+                              {openMenuId === sc.id_no && (
+                                <div
+                                  onClick={(e) => e.stopPropagation()}
+                                  style={{
+                                    position: "absolute", right: 16, top: "100%", marginTop: 4,
+                                    background: "#fff", borderRadius: 10, border: "1px solid rgba(1,63,153,0.12)",
+                                    boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 20,
+                                    minWidth: 150, overflow: "hidden",
+                                  }}
+                                >
+                                  <MenuItem onClick={() => { openEdit(sc); setOpenMenuId(null); }} color="#013F99">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                    Edit
+                                  </MenuItem>
+                                  <MenuItem onClick={() => { window.open(getCounselorUrl(sc.id_no), "_blank"); setOpenMenuId(null); }} color="#4CB1E9">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                    View Card
+                                  </MenuItem>
+                                  <MenuItem onClick={() => { setPrintData(sc); setOpenMenuId(null); }} color="#b8860b">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                                    Print Letter
+                                  </MenuItem>
+                                  <MenuItem onClick={() => { handleDownloadQr(sc); setOpenMenuId(null); }} color="#013F99">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><line x1="17" y1="17" x2="17" y2="21"/><line x1="21" y1="17" x2="21" y2="21"/><line x1="17" y1="21" x2="21" y2="21"/></svg>
+                                    Download QR
+                                  </MenuItem>
+                                </div>
+                              )}
                             </td>
                           </tr>
                         );
@@ -424,6 +619,44 @@ export default function SalesCounselorManagement() {
           )}
         </div>
 
+        {/* EDIT MODAL — writes only to sales_counselor_extras (Supabase),
+            never touches the main API. */}
+        {editModal && editData && (
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "flex-start", justifyContent: "center", zIndex: 1000, padding: 20, overflowY: "auto" }}>
+            <div style={{ background: "#fff", borderRadius: 20, width: "95%", maxWidth: 480, overflowX: "hidden", padding: 32, boxSizing: "border-box", margin: "20px auto" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                <div>
+                  <h2 style={{ fontSize: 18, fontWeight: 700, color: "#0b1a3b", margin: 0, fontFamily: "'Montserrat', sans-serif" }}>Edit Sales Counselor</h2>
+                  <p style={{ fontSize: 12, color: "#64748b", margin: "4px 0 0" }}>{editData.full_name} · {editData.id_no}</p>
+                </div>
+                <button onClick={() => setEditModal(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b" }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              </div>
+              <div style={{ height: 3, background: "linear-gradient(90deg, #013F99, #4CB1E9, #F3CF47)", borderRadius: 2, marginBottom: 20 }} />
+
+              <p style={{ fontSize: 12, color: "#94a3b8", marginBottom: 20 }}>
+                Editable dito lang — hindi galing/babalik sa main API. Yung ibang fields (pangalan, address, atbp.) ay laging galing sa API mismo.
+              </p>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <div style={fieldStyle}>
+                  <label style={labelStyle}>Position</label>
+                  <input type="text" value={editData.position} onChange={(e) => setEditData(prev => ({ ...prev, position: e.target.value }))} style={inputStyle} placeholder="e.g. Sales Counselor" />
+                </div>
+                <div style={fieldStyle}>
+                  <label style={labelStyle}>Date Released</label>
+                  <input type="date" value={editData.date_release} onChange={(e) => setEditData(prev => ({ ...prev, date_release: e.target.value }))} style={inputStyle} />
+                </div>
+              </div>
+
+              <div style={{ display: "flex", gap: 12, justifyContent: "flex-end", marginTop: 28, paddingTop: 20, borderTop: "1px solid rgba(1,63,153,0.08)" }}>
+                <button onClick={() => setEditModal(false)} style={{ padding: "10px 24px", borderRadius: 10, border: "1px solid rgba(1,63,153,0.15)", background: "#fff", color: "#64748b", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'Poppins', sans-serif" }}>Cancel</button>
+                <button onClick={handleSaveEdit} disabled={savingEdit} style={{ padding: "10px 24px", borderRadius: 10, border: "none", background: savingEdit ? "#94a3b8" : "linear-gradient(90deg, #013F99, #4CB1E9)", color: "#fff", fontSize: 13, fontWeight: 600, cursor: savingEdit ? "not-allowed" : "pointer", fontFamily: "'Poppins', sans-serif" }}>{savingEdit ? "Saving..." : "Save Changes"}</button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* PRINT PREVIEW */}
@@ -439,6 +672,24 @@ export default function SalesCounselorManagement() {
         </div>
       )}
     </div>
+  );
+}
+
+function MenuItem({ onClick, color, children }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        width: "100%", display: "flex", alignItems: "center", gap: 8,
+        padding: "10px 14px", border: "none", background: "#fff",
+        color, fontSize: 12.5, fontWeight: 600, cursor: "pointer",
+        textAlign: "left", fontFamily: "'Poppins', sans-serif",
+      }}
+      onMouseEnter={(e) => (e.currentTarget.style.background = "#f6fbfe")}
+      onMouseLeave={(e) => (e.currentTarget.style.background = "#fff")}
+    >
+      {children}
+    </button>
   );
 }
 
@@ -525,6 +776,13 @@ function SCLetter({ sc }) {
 const PRINT_MODAL_OVERLAY = { position: "fixed", inset: 0, background: "rgba(15,23,42,0.6)", zIndex: 1000, display: "flex", flexDirection: "column" };
 const PRINT_MODAL_TOOLBAR = { display: "flex", justifyContent: "space-between", padding: "12px 20px", background: "#fff" };
 const PRINT_MODAL_SCROLL = { flex: 1, overflow: "auto", display: "flex", justifyContent: "center", padding: "24px 0 48px" };
+
+const SPIN_CSS = `
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+`;
 
 const PRINT_CSS = `
 @media print {
