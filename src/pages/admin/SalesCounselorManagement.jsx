@@ -110,18 +110,31 @@ export default function SalesCounselorManagement() {
   // --- Row action menu (⋮ dropdown instead of 4 inline buttons) ----------
   const [openMenuId, setOpenMenuId] = useState(null);
   // --- Export dropdown (combines CSV + SQLite into one button) -----------
-  const [exportMenuOpen, setExportMenuOpen] = useState(false);
-  // --- Refresh = run the main-API sync, then reload from Supabase --------
-  const [syncing, setSyncing] = useState(false);
+const [exportMenuOpen, setExportMenuOpen] = useState(false);
+
+// Sync dropdown
+const [syncMenuOpen, setSyncMenuOpen] = useState(false);
+
+// Supabase sync loading
+const [syncing, setSyncing] = useState(false);
+
+// CardExchange sync loading
+const [syncingCardExchange, setSyncingCardExchange] = useState(false);
 
   // Close the open row menu / export menu on any click outside them.
-  useEffect(() => {
-    if (!openMenuId && !exportMenuOpen) return;
-    const closeMenus = () => { setOpenMenuId(null); setExportMenuOpen(false); };
-    document.addEventListener("click", closeMenus);
-    return () => document.removeEventListener("click", closeMenus);
-  }, [openMenuId, exportMenuOpen]);
+useEffect(() => {
+  if (!openMenuId && !exportMenuOpen && !syncMenuOpen) return;
 
+  const closeMenus = () => {
+    setOpenMenuId(null);
+    setExportMenuOpen(false);
+    setSyncMenuOpen(false);
+  };
+
+  document.addEventListener("click", closeMenus);
+
+  return () => document.removeEventListener("click", closeMenus);
+}, [openMenuId, exportMenuOpen, syncMenuOpen]);
   useEffect(() => { fetchCounselors(); }, []);
 
   // Supabase is now the single source this page reads from — no more main
@@ -187,9 +200,6 @@ export default function SalesCounselorManagement() {
 
 const syncCardExchange = async () => {
   try {
-    // IMPORTANT:
-    // Current filtered results only.
-    // Hindi paginated at hindi lahat ng counselors.
     const recordsToSync = filtered.map(getExportRow);
 
     if (recordsToSync.length === 0) {
@@ -200,7 +210,6 @@ const syncCardExchange = async () => {
       return;
     }
 
-    // Confirmation before replacing local SQLite contents
     const confirmed = window.confirm(
       `Sync ${recordsToSync.length} record(s) to CardExchange?\n\n` +
       `The current local CardExchange records will be replaced ` +
@@ -211,15 +220,16 @@ const syncCardExchange = async () => {
       return;
     }
 
+    // Start spinning only after confirmation
+    setSyncingCardExchange(true);
+
     const response = await fetch(
       "http://localhost:3001/sync",
       {
         method: "POST",
-
         headers: {
           "Content-Type": "application/json",
         },
-
         body: JSON.stringify({
           records: recordsToSync,
         }),
@@ -243,16 +253,15 @@ const syncCardExchange = async () => {
     );
 
   } catch (error) {
-    console.error(
-      "CardExchange sync failed:",
-      error
-    );
+    console.error("CardExchange sync failed:", error);
 
     alert(
       "CardExchange Sync Failed!\n\n" +
       error.message +
       "\n\nMake sure the CardExchange Local Service is running."
     );
+  } finally {
+    setSyncingCardExchange(false);
   }
 };
 
@@ -500,33 +509,201 @@ const syncCardExchange = async () => {
               {sortOrder === "asc" ? "Oldest First" : "Newest First"}
             </button>
 
-            <button onClick={handleRefresh} disabled={syncing}
-              style={{ padding: "9px 18px", borderRadius: 10, border: "none", background: syncing ? "#94a3b8" : "linear-gradient(90deg, #013F99, #4CB1E9)", color: "#fff", fontSize: 12, fontWeight: 600, cursor: syncing ? "not-allowed" : "pointer", fontFamily: "'Poppins', sans-serif", display: "flex", alignItems: "center", gap: 6 }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ animation: syncing ? "spin 1s linear infinite" : "none" }}><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-              {syncing ? "Syncing..." : "Refresh"}
-            </button>
 
-            <button
-  onClick={syncCardExchange}
-  style={{
-    padding: "9px 18px",
-    borderRadius: 10,
-    border: "none",
-    background: "#16a34a",
-    color: "#fff",
-    fontSize: 12,
-    fontWeight: 600,
-    cursor: "pointer",
-    fontFamily: "'Poppins', sans-serif",
-  }}
->
-  Test CardExchange
-</button>
+<div style={{ position: "relative" }}>
 
-            <div style={{ position: "relative" }}>
+  {/* SYNC DATA BUTTON */}
+  <button
+    onClick={(e) => {
+      e.stopPropagation();
+
+      if (!syncing && !syncingCardExchange) {
+        setSyncMenuOpen((v) => !v);
+        setExportMenuOpen(false);
+      }
+    }}
+    disabled={syncing || syncingCardExchange}
+    style={{
+      padding: "9px 18px",
+      borderRadius: 10,
+      border: "1px solid rgba(1,63,153,0.12)",
+      background:
+  syncing || syncingCardExchange
+    ? "#94a3b8"
+    : "linear-gradient(90deg, #013F99, #4CB1E9)",
+
+color: "#fff",
+      color: "#fff",
+      fontSize: 12,
+      fontWeight: 600,
+      cursor:
+        syncing || syncingCardExchange
+          ? "not-allowed"
+          : "pointer",
+      fontFamily: "'Poppins', sans-serif",
+      display: "flex",
+      alignItems: "center",
+      gap: 6,
+      opacity:
+        syncing || syncingCardExchange
+          ? 0.75
+          : 1,
+    }}
+  >
+
+    {/* SYNC ICON */}
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      style={{
+        animation:
+          syncing || syncingCardExchange
+            ? "spin 1s linear infinite"
+            : "none",
+      }}
+    >
+      <polyline points="23 4 23 10 17 10" />
+      <polyline points="1 20 1 14 7 14" />
+      <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+    </svg>
+
+    {syncing
+      ? "Syncing Supabase..."
+      : syncingCardExchange
+      ? "Syncing CardExchange..."
+      : "Sync Data"}
+
+    {/* DROPDOWN ARROW */}
+    {!syncing && !syncingCardExchange && (
+      <svg
+        width="12"
+        height="12"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      >
+        <polyline points="6 9 12 15 18 9" />
+      </svg>
+    )}
+  </button>
+
+
+  {/* SYNC DROPDOWN */}
+  {syncMenuOpen && (
+    <div
+      onClick={(e) => e.stopPropagation()}
+      style={{
+        position: "absolute",
+        left: 0,
+        top: "100%",
+        marginTop: 4,
+        background: "#fff",
+        borderRadius: 10,
+        border: "1px solid rgba(1,63,153,0.12)",
+        boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+        zIndex: 30,
+        minWidth: 200,
+        overflow: "hidden",
+      }}
+    >
+
+      {/* SYNC SUPABASE */}
+      <MenuItem
+        onClick={() => {
+          setSyncMenuOpen(false);
+          handleRefresh();
+        }}
+        color="#013F99"
+      >
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+        >
+          <polyline points="23 4 23 10 17 10" />
+          <polyline points="1 20 1 14 7 14" />
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+        </svg>
+
+        Sync Supabase
+      </MenuItem>
+
+
+      {/* SYNC CARDEXCHANGE */}
+      <MenuItem
+        onClick={() => {
+          setSyncMenuOpen(false);
+          syncCardExchange();
+        }}
+        color="#013F99"
+      >
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+        >
+          <polyline points="23 4 23 10 17 10" />
+          <polyline points="1 20 1 14 7 14" />
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+        </svg>
+
+        Sync CardExchange
+      </MenuItem>
+
+    </div>
+  )}
+</div>
+
+<div style={{ position: "relative" }}>
               <button
-                onClick={(e) => { e.stopPropagation(); setExportMenuOpen((v) => !v); }}
-                style={{ padding: "9px 18px", borderRadius: 10, border: "1px solid rgba(1,63,153,0.12)", background: "#fff", color: "#013F99", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "'Poppins', sans-serif", display: "flex", alignItems: "center", gap: 6 }}>
+                onClick={(e) => {
+                e.stopPropagation();
+
+                setExportMenuOpen((v) => !v);
+                setSyncMenuOpen(false);
+              }}
+               style={{
+  padding: "9px 18px",
+  borderRadius: 10,
+  border: "none",
+
+  background:
+    syncing || syncingCardExchange
+      ? "#94a3b8"
+      : "linear-gradient(90deg, #013F99, #4CB1E9)",
+
+  color: "#fff",
+  fontSize: 12,
+  fontWeight: 600,
+
+  cursor:
+    syncing || syncingCardExchange
+      ? "not-allowed"
+      : "pointer",
+
+  fontFamily: "'Poppins', sans-serif",
+
+  display: "flex",
+  alignItems: "center",
+  gap: 6,
+
+  whiteSpace: "nowrap",
+}}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                 Export
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="6 9 12 15 18 9"/></svg>
