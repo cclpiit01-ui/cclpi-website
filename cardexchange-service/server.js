@@ -12,7 +12,7 @@ const PORT = 3001;
 // ========================================
 
 const DB_PATH =
-  "C:\\Users\\ASUS\\Desktop\\ID\\Sales Counselor\\database\\sales_counselors.sqlite";
+  process.env.DB_PATH || "/data/sales_counselors.sqlite";
 
 
 // ========================================
@@ -435,7 +435,7 @@ app.post("/sync", (req, res) => {
 // START LOCAL SERVICE
 // ========================================
 
-app.listen(PORT, "127.0.0.1", () => {
+app.listen(PORT, "0.0.0.0", () => {
   console.log("");
   console.log("========================================");
   console.log(" CardExchange Local Service");
