@@ -8,6 +8,8 @@ import initSqlJs from "sql.js";
 import sqlWasmUrl from "sql.js/dist/sql-wasm.wasm?url";
 import { supabaseEmployees } from "@/lib/supabaseEmployees";
 import { runSync } from "@/pages/admin/SyncSalesCounselors";
+import Toast from "@/components/Toast";
+import ConfirmModal from "@/components/ConfirmModal";
 
 /**
  * This page reads ONLY from Supabase now — it never calls the main
@@ -41,6 +43,8 @@ const COMPANY = {
 // Move this key to an env var (e.g. VITE_QR_OBFUSCATION_KEY) if you want it
 // out of the source file; either way, change it from the placeholder below.
 const OBFUSCATION_KEY = import.meta.env.VITE_QR_OBFUSCATION_KEY || "cclpi-sc-2024-secure";
+
+
 
 function encodeCounselorId(id) {
   if (!id) return "";
@@ -91,6 +95,21 @@ const isActiveValue = (expiryDateStr) => {
 
 export default function SalesCounselorManagement() {
   const [counselors, setCounselors] = useState([]);
+  const [toast, setToast] = useState(null);
+  const [confirmSync, setConfirmSync] = useState(null);
+
+  const showToast = (
+    message,
+    type = "success",
+    duration = 4000
+  ) => {
+    setToast({
+      message,
+      type,
+      duration,
+    });
+  };
+
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState(null);
   const [search, setSearch] = useState("");
@@ -107,10 +126,15 @@ export default function SalesCounselorManagement() {
   const [editData, setEditData] = useState(null);
   const [savingEdit, setSavingEdit] = useState(false);
 
+// --- sc picture (Supabase) -----------------------------------------
+  const [pictureFile, setPictureFile] = useState(null);
+  const [picturePreview, setPicturePreview] = useState("");
+
   // --- Row action menu (⋮ dropdown instead of 4 inline buttons) ----------
   const [openMenuId, setOpenMenuId] = useState(null);
+  const [menuPosition, setMenuPosition] = useState({ top: 0, right: 0 });
   // --- Export dropdown (combines CSV + SQLite into one button) -----------
-const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
 
 // Sync dropdown
 const [syncMenuOpen, setSyncMenuOpen] = useState(false);
@@ -210,15 +234,6 @@ const syncCardExchange = async () => {
       return;
     }
 
-    const confirmed = window.confirm(
-      `Sync ${recordsToSync.length} record(s) to CardExchange?\n\n` +
-      `The current local CardExchange records will be replaced ` +
-      `with the records matching your current filters.`
-    );
-
-    if (!confirmed) {
-      return;
-    }
 
     // Start spinning only after confirmation
     setSyncingCardExchange(true);
@@ -246,11 +261,11 @@ const syncCardExchange = async () => {
 
     console.log("CardExchange sync result:", result);
 
-    alert(
-      `CardExchange Sync Complete!\n\n` +
-      `${result.syncedRecords} record(s) synced successfully.\n\n` +
-      `A backup of the previous database was created.`
-    );
+showToast(
+  `${result.syncedRecords} record(s) synced successfully. A backup of the previous database was created.`,
+  "success",
+  5000
+);
 
   } catch (error) {
     console.error("CardExchange sync failed:", error);
@@ -264,28 +279,103 @@ const syncCardExchange = async () => {
     setSyncingCardExchange(false);
   }
 };
+const openEdit = (sc) => {
+  setEditData({
+    id_no: sc.id_no,
+    full_name: sc.full_name,
+    position: sc.position || "",
+    date_release: sc.date_release || "",
+    uploaded_picture: sc.uploaded_picture || "",
+  });
 
-  const openEdit = (sc) => {
-    setEditData({ id_no: sc.id_no, full_name: sc.full_name, position: sc.position || "", date_release: sc.date_release || "" });
-    setEditModal(true);
-  };
+  setPictureFile(null);
+  setPicturePreview("");
 
-  const handleSaveEdit = async () => {
-    setSavingEdit(true);
-    try {
-      const { error } = await supabaseEmployees
-        .from(SC_TABLE)
-        .update({ position: editData.position || null, date_release: editData.date_release || null })
-        .eq("id_no", editData.id_no);
-      if (error) throw error;
-      setEditModal(false);
-      fetchCounselors();
-    } catch (err) {
-      alert("Error saving: " + err.message);
+  setEditModal(true);
+};
+
+const handleSaveEdit = async () => {
+  setSavingEdit(true);
+
+  try {
+    // Keep existing uploaded picture if no new file is selected
+    let pictureUrl = editData.uploaded_picture || null;
+
+    // If user selected a new picture, upload it to Storage
+    if (pictureFile) {
+      const fileExtension = pictureFile.name
+        .split(".")
+        .pop()
+        .toLowerCase();
+
+      const fileName = `${editData.id_no}.${fileExtension}`;
+
+      const { error: uploadError } = await supabaseEmployees.storage
+        .from("sales-counselor-pictures")
+        .upload(fileName, pictureFile, {
+          upsert: true,
+          contentType: pictureFile.type,
+        });
+
+      if (uploadError) throw uploadError;
+
+      // Get URL from Storage
+      const { data: publicUrlData } = supabaseEmployees.storage
+        .from("sales-counselor-pictures")
+        .getPublicUrl(fileName);
+
+      pictureUrl = publicUrlData.publicUrl;
     }
-    setSavingEdit(false);
-  };
 
+    // Save the Storage URL to uploaded_picture
+    const { error } = await supabaseEmployees
+      .from(SC_TABLE)
+      .update({
+        position: editData.position || null,
+        date_release: editData.date_release || null,
+        uploaded_picture: pictureUrl,
+      })
+      .eq("id_no", editData.id_no);
+
+    if (error) throw error;
+
+    // Update only this counselor in the current React table
+    setCounselors((prev) =>
+      prev.map((sc) =>
+        sc.id_no === editData.id_no
+          ? {
+              ...sc,
+              position: editData.position || null,
+              date_release: editData.date_release || null,
+              uploaded_picture: pictureUrl,
+            }
+          : sc
+      )
+    );
+
+    setPictureFile(null);
+    setPicturePreview("");
+    setEditModal(false);
+
+    showToast(
+      "Sales Counselor updated successfully.",
+      "success",
+      4000
+    );
+
+  } catch (err) {
+    console.error("Error saving counselor:", err);
+
+    showToast(
+      "Error saving: " + err.message,
+      "error",
+      5000
+    );
+
+  } finally {
+    setSavingEdit(false);
+  }
+};
   // Client-side sort by id_no — these are sequential (M-00000, M-00001, ...)
   // in creation order, so sorting by id_no doubles as Oldest/Newest First.
   // Unlike created_at or date_release, id_no is always present on every
@@ -642,10 +732,10 @@ color: "#fff",
 
       {/* SYNC CARDEXCHANGE */}
       <MenuItem
-        onClick={() => {
-          setSyncMenuOpen(false);
-          syncCardExchange();
-        }}
+onClick={() => {
+  setSyncMenuOpen(false);
+  setConfirmSync(true);
+}}
         color="#013F99"
       >
         <svg
@@ -769,7 +859,20 @@ color: "#fff",
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  setOpenMenuId((prev) => (prev === sc.id_no ? null : sc.id_no));
+
+                                  if (openMenuId === sc.id_no) {
+                                    setOpenMenuId(null);
+                                    return;
+                                  }
+
+                                  const rect = e.currentTarget.getBoundingClientRect();
+
+                                  setMenuPosition({
+                                    top: rect.bottom + 6,
+                                    right: window.innerWidth - rect.right,
+                                  });
+
+                                  setOpenMenuId(sc.id_no);
                                 }}
                                 style={{
                                   width: 32, height: 32, borderRadius: 8,
@@ -782,16 +885,22 @@ color: "#fff",
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>
                               </button>
 
-                              {openMenuId === sc.id_no && (
-                                <div
-                                  onClick={(e) => e.stopPropagation()}
-                                  style={{
-                                    position: "absolute", right: 16, top: "100%", marginTop: 4,
-                                    background: "#fff", borderRadius: 10, border: "1px solid rgba(1,63,153,0.12)",
-                                    boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 20,
-                                    minWidth: 150, overflow: "hidden",
-                                  }}
-                                >
+                                  {openMenuId === sc.id_no && (
+                                    <div
+                                      onClick={(e) => e.stopPropagation()}
+                                      style={{
+                                        position: "fixed",
+                                        top: menuPosition.top,
+                                        right: menuPosition.right,
+                                        background: "#fff",
+                                        borderRadius: 10,
+                                        border: "1px solid rgba(1,63,153,0.12)",
+                                        boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+                                        zIndex: 99999,
+                                        minWidth: 150,
+                                        overflow: "hidden",
+                                      }}
+                                    >
                                   <MenuItem onClick={() => { openEdit(sc); setOpenMenuId(null); }} color="#013F99">
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                                     Edit
@@ -838,7 +947,7 @@ color: "#fff",
           )}
         </div>
 
-        {/* EDIT MODAL — writes only to sales_counselor_extras (Supabase),
+        {/* EDIT MODAL (Supabase),
             never touches the main API. */}
         {editModal && editData && (
           <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "flex-start", justifyContent: "center", zIndex: 1000, padding: 20, overflowY: "auto" }}>
@@ -861,8 +970,133 @@ color: "#fff",
               <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 <div style={fieldStyle}>
                   <label style={labelStyle}>Position</label>
-                  <input type="text" value={editData.position} onChange={(e) => setEditData(prev => ({ ...prev, position: e.target.value }))} style={inputStyle} placeholder="e.g. Sales Counselor" />
+
+                  <select
+                    value={editData.position || ""}
+                    onChange={(e) =>
+                      setEditData((prev) => ({
+                        ...prev,
+                        position: e.target.value,
+                      }))
+                    }
+                    style={inputStyle}
+                  >
+                    <option value="">Select Position</option>
+                    <option value="Sales Counselor">Sales Counselor</option>
+                    <option value="Unit Manager">Unit Manager</option>
+                    <option value="Agency Manager">Agency Manager</option>
+                  </select>
                 </div>
+                
+                <div style={fieldStyle}>
+                  <label style={labelStyle}>Picture</label>
+
+                  {/* Picture Preview */}
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 16,
+                      marginBottom: 10,
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 80,
+                        height: 80,
+                        borderRadius: 12,
+                        overflow: "hidden",
+                        border: "1px solid #e2e8f0",
+                        background: "#f8fafc",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      {picturePreview || editData.uploaded_picture ? (
+                        <img
+                          src={picturePreview || editData.uploaded_picture}
+                          alt="Sales Counselor"
+                          style={{
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "cover",
+                          }}
+                        />
+                      ) : (
+                        <span
+                          style={{
+                            fontSize: 11,
+                            color: "#94a3b8",
+                          }}
+                        >
+                          No Picture
+                        </span>
+                      )}
+                    </div>
+
+                    <div style={{ flex: 1 }}>
+<label
+  style={{
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 8,
+    padding: "9px 14px",
+    background: "#013F99",
+    color: "#fff",
+    borderRadius: 8,
+    fontSize: 12,
+    fontWeight: 600,
+    cursor: "pointer",
+    fontFamily: "'Poppins', sans-serif",
+    transition: "0.2s",
+  }}
+>
+  <svg
+    width="15"
+    height="15"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <polyline points="17 8 12 3 7 8" />
+    <line x1="12" y1="3" x2="12" y2="15" />
+  </svg>
+
+  Choose Picture
+
+  <input
+    type="file"
+    accept="image/jpeg,image/png,image/webp"
+    onChange={(e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      setPictureFile(file);
+      setPicturePreview(URL.createObjectURL(file));
+    }}
+    style={{ display: "none" }}
+  />
+</label>
+
+                      <div
+                        style={{
+                          fontSize: 10,
+                          color: "#94a3b8",
+                          marginTop: 6,
+                        }}
+                      >
+                        JPG, PNG or WebP
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+
                 <div style={fieldStyle}>
                   <label style={labelStyle}>Date Released</label>
                   <input type="date" value={editData.date_release} onChange={(e) => setEditData(prev => ({ ...prev, date_release: e.target.value }))} style={inputStyle} />
@@ -882,14 +1116,56 @@ color: "#fff",
       {printData && (
         <div style={PRINT_MODAL_OVERLAY} className="no-print-overlay">
           <div style={PRINT_MODAL_TOOLBAR} className="no-print">
-            <button onClick={() => setPrintData(null)} style={{ padding: "10px 20px", borderRadius: 10, border: "1px solid rgba(1,63,153,0.15)", background: "#fff", color: "#013F99", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'Poppins', sans-serif" }}>← Back to list</button>
-            <button onClick={() => window.print()} style={{ padding: "10px 20px", borderRadius: 10, border: "none", background: "linear-gradient(90deg, #013F99, #4CB1E9)", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'Poppins', sans-serif" }}>🖨️ Print</button>
+            <button
+              onClick={() => setPrintData(null)}
+            >
+              ← Back to list
+            </button>
+
+            <button onClick={() => window.print()}>
+              🖨️ Print
+            </button>
           </div>
-          <div style={PRINT_MODAL_SCROLL} className="no-print-scroll">
+
+          <div
+            style={PRINT_MODAL_SCROLL}
+            className="no-print-scroll"
+          >
             <SCLetter sc={printData} />
           </div>
         </div>
       )}
+
+      {/* REUSABLE TOAST NOTIFICATION */}
+      <ConfirmModal
+          open={confirmSync}
+          title="Sync CardExchange"
+          message={`The current local CardExchange records will be replaced with the records matching your current filters.`}
+          confirmText="Sync Now"
+          onCancel={() => setConfirmSync(false)}
+          onConfirm={() => {
+            setConfirmSync(false);
+            syncCardExchange();
+          }}
+        />
+
+        {toast && (
+          <Toast
+            message={toast.message}
+            type={toast.type}
+            duration={toast.duration}
+            onClose={() => setToast(null)}
+          />
+        )}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          duration={toast.duration}
+          onClose={() => setToast(null)}
+        />
+      )}
+
     </div>
   );
 }
@@ -991,6 +1267,8 @@ function SCLetter({ sc }) {
     </div>
   );
 }
+
+
 
 const PRINT_MODAL_OVERLAY = { position: "fixed", inset: 0, background: "rgba(15,23,42,0.6)", zIndex: 1000, display: "flex", flexDirection: "column" };
 const PRINT_MODAL_TOOLBAR = { display: "flex", justifyContent: "space-between", padding: "12px 20px", background: "#fff" };

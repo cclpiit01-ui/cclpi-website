@@ -96,15 +96,46 @@ export default function SalesCounselorCard() {
 
   const active = isActiveValue(sc.expiry_date);
 
+
   return (
     <div style={{ minHeight: "100vh", background: "linear-gradient(135deg, #013F99, #4CB1E9)", fontFamily: "'Poppins', sans-serif", padding: "40px 16px", display: "flex", alignItems: "center", justifyContent: "center" }}>
       <div style={{ maxWidth: 400, width: "100%" }}>
         <div style={{ background: "#fff", borderRadius: 24, padding: "36px 28px", textAlign: "center", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
           <img src={CCLPILogo} alt="CCLPI" style={{ height: 36, marginBottom: 20 }} />
 
-          <div style={{ width: 100, height: 100, borderRadius: "50%", background: "linear-gradient(135deg, #013F99, #4CB1E9)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 700, fontSize: 32, margin: "0 auto" }}>
-            {sc.full_name?.[0]?.toUpperCase() || "?"}
-          </div>
+<div
+  style={{
+    width: 120,
+    height: 120,
+    borderRadius: "50%",
+    background: "linear-gradient(135deg, #013F99, #4CB1E9)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    color: "#fff",
+    fontWeight: 700,
+    fontSize: 32,
+    margin: "0 auto",
+    overflow: "hidden",
+    border: "4px solid #fff",
+    boxShadow: "0 4px 15px rgba(1,63,153,0.2)",
+  }}
+>
+  {sc.uploaded_picture ? (
+    <img
+      src={sc.uploaded_picture}
+      alt={sc.full_name}
+      style={{
+        width: "100%",
+        height: "100%",
+        objectFit: "cover",
+        objectPosition: "center",
+      }}
+    />
+  ) : (
+    sc.full_name?.[0]?.toUpperCase() || "?"
+  )}
+</div>
 
           <h1 style={{ fontSize: 20, fontWeight: 700, color: "#0b1a3b", margin: "16px 0 2px" }}>{sc.full_name}</h1>
           <p style={{ fontSize: 13, color: "#4CB1E9", fontWeight: 600, margin: 0 }}>{sc.position || "—"}</p>
