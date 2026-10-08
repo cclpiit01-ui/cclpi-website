@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabaseEmployees } from "@/lib/supabaseEmployees";
 import QRCode from "qrcode";
-import Toast from "@/components/toast";
+import Toast from "@/components/Toast";
 export default function EventManagement() {
   const [toast, setToast] = useState(null);
   const showToast = (message, type = "success") => setToast({ message, type, id: Date.now() });
