@@ -10,6 +10,7 @@ import { supabaseEmployees } from "@/lib/supabaseEmployees";
 import { runSync } from "@/pages/admin/SyncSalesCounselors";
 import Toast from "@/components/Toast";
 import ConfirmModal from "@/components/ConfirmModal";
+import PerformanceSalesCounselor from "@/components/letter/PerformanceSalesCounselor";
 
 /**
  * This page reads ONLY from Supabase now — it never calls the main
@@ -22,6 +23,46 @@ import ConfirmModal from "@/components/ConfirmModal";
 
 const CARD_BASE_URL = window.location.origin + "/sales-counselor";
 const SC_TABLE = "sales_counselors";
+
+const PRODUCTION_SC_TABLE = "production_sales_counselor";
+const PRODUCTION_SC_URL =
+  import.meta.env.VITE_PRODUCTION_SC_API_URL ||
+  "https://sys.cclpi.com.ph/api/ProductionSummarySC";
+const PRODUCTION_API_TOKEN =
+  import.meta.env.VITE_PRODUCTION_API_TOKEN ||
+  import.meta.env.VITE_SALES_COUNSELOR_API_TOKEN;
+
+async function syncSalesCounselorProduction() {
+  const response = await fetch(PRODUCTION_SC_URL, {
+    headers: { Authorization: `Bearer ${PRODUCTION_API_TOKEN}` },
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      `Sales Counselor production API request failed (${response.status})`
+    );
+  }
+
+  const json = await response.json();
+  const rows = Array.isArray(json) ? json : json?.data || [];
+
+  if (rows.length === 0) {
+    throw new Error(
+      "Sales Counselor production API returned no rows - nothing was changed."
+    );
+  }
+
+  const { data, error } = await supabaseEmployees.rpc(
+    "import_production_sales_counselor",
+    { p_rows: rows }
+  );
+
+  if (error) {
+    throw new Error(`Sales Counselor production: ${error.message}`);
+  }
+
+  return data;
+}
 
 // Static company info for the printed welcome letter — edit once here.
 const COMPANY = {
@@ -93,6 +134,19 @@ const isActiveValue = (expiryDateStr) => {
   return expiry.getTime() >= today.getTime();
 };
 
+// In-memory cache, kept at module scope (outside the component) so it
+// survives this page unmounting/remounting — which is what happens every
+// time you click away to another nav item and click back, since your
+// router unmounts SalesCounselorManagement and the old useEffect(() => {
+// fetchCounselors() }, []) ran the full paginated Supabase fetch again
+// from zero, hence the 2-3s reload every single click.
+// Now: first visit still does the full fetch. Every visit after that,
+// the table renders instantly from this cache while a background refetch
+// quietly updates it (and the on-screen table) once it lands — no spinner,
+// no blocking. Resets to null on a full page reload (new JS module), which
+// is fine since that's already a fresh load anyway.
+let counselorsCache = null;
+
 export default function SalesCounselorManagement() {
   const [counselors, setCounselors] = useState([]);
   const [toast, setToast] = useState(null);
@@ -120,6 +174,10 @@ export default function SalesCounselorManagement() {
   const itemsPerPage = 10;
 
   const [printData, setPrintData] = useState(null);
+  // Performance Letter preview/print state — separate from the Welcome
+  // Letter (printData) so both can have their own modal + print target.
+  const [performanceData, setPerformanceData] = useState(null);
+  const [downloadingWord, setDownloadingWord] = useState(false);
 
   // --- Editable extras (Supabase) -----------------------------------------
   const [editModal, setEditModal] = useState(false);
@@ -159,7 +217,18 @@ useEffect(() => {
 
   return () => document.removeEventListener("click", closeMenus);
 }, [openMenuId, exportMenuOpen, syncMenuOpen]);
-  useEffect(() => { fetchCounselors(); }, []);
+  useEffect(() => {
+    if (counselorsCache) {
+      // Already fetched earlier in this session — show it immediately,
+      // no loading spinner, then quietly re-check Supabase in the
+      // background in case something changed while we were away.
+      setCounselors(counselorsCache);
+      setLoading(false);
+      fetchCounselors({ background: true });
+    } else {
+      fetchCounselors();
+    }
+  }, []);
 
   // Supabase is now the single source this page reads from — no more main
   // API calls here at all, so this stays fast no matter how many thousand
@@ -193,17 +262,26 @@ useEffect(() => {
     return allRows;
   };
 
-  const fetchCounselors = async () => {
-    setLoading(true);
+  // `background: true` (used for the silent revalidate on remount, and
+  // callable manually if you ever want a quiet refresh elsewhere) skips
+  // the loading spinner and doesn't wipe the table on error, since the
+  // user is already looking at good — if slightly stale — cached data.
+  const fetchCounselors = async ({ background = false } = {}) => {
+    if (!background) setLoading(true);
     setErrorMsg(null);
     try {
       const data = await fetchAllRows();
-      setCounselors(data || []);
+      counselorsCache = data || [];
+      setCounselors(counselorsCache);
     } catch (err) {
-      setErrorMsg(err.message || "Failed to load sales counselors.");
-      setCounselors([]);
+      if (!background) {
+        setErrorMsg(err.message || "Failed to load sales counselors.");
+        setCounselors([]);
+      } else {
+        console.error("Background refresh failed:", err.message);
+      }
     }
-    setLoading(false);
+    if (!background) setLoading(false);
   };
 
   // Refresh now does two things: pull any new/changed data from the main
@@ -220,6 +298,42 @@ useEffect(() => {
     }
     await fetchCounselors();
     setSyncing(false);
+  };
+
+  const handleSyncProduction = async () => {
+    setSyncing(true);
+
+    try {
+      const result = await syncSalesCounselorProduction();
+
+      const inserted = result?.inserted ?? 0;
+      const skipped = result?.skipped ?? 0;
+      const skippedIds = Array.isArray(result?.skipped_ids)
+        ? result.skipped_ids
+        : [];
+
+      const skippedText = skipped
+        ? `, ${skipped} skipped (${skippedIds.slice(0, 5).join(", ")}${
+            skipped > 5 ? "…" : ""
+          })`
+        : "";
+
+      showToast(
+        `Sales Counselor Production: ${inserted} synced${skippedText}`,
+        "success",
+        8000
+      );
+    } catch (err) {
+      console.error("Sales Counselor production sync failed:", err);
+
+      showToast(
+        "Sales Counselor production sync failed: " + err.message,
+        "error",
+        6000
+      );
+    } finally {
+      setSyncing(false);
+    }
   };
 
 const syncCardExchange = async () => {
@@ -432,6 +546,135 @@ const handleSaveEdit = async () => {
       else setCounselors((prev) => prev.map((c) => c.id_no === sc.id_no ? { ...c, qr_link: counselorUrl } : c));
     } catch (err) {
       alert("Error generating QR: " + err.message);
+    }
+  };
+
+const openPerformance = async (sc) => {
+  try {
+    const { data, error } = await supabaseEmployees
+      .from(PRODUCTION_SC_TABLE)
+      .select("fyp_production")
+      .eq("id_no", sc.id_no)
+      .maybeSingle();
+
+    if (error) throw error;
+
+    const letterData = {
+      ...sc,
+      production: data?.fyp_production ?? null,
+    };
+
+    setPerformanceData(letterData);
+    setOpenMenuId(null);
+  } catch (err) {
+    console.error("Failed to load Sales Counselor production:", err);
+
+    showToast(
+      "Failed to load Sales Counselor production: " + err.message,
+      "error",
+      5000
+    );
+  }
+};
+
+  // --- Performance Letter: Word (.docx) download ---------------------------
+  // Uses the "docx" npm package (client-side, same dynamic-import pattern
+  // as the sql.js export above) so we don't ship it in the main bundle.
+  // Run `npm install docx` if it isn't in package.json yet.
+  // NOTE: the logo/"CCLPI Plans" logotype from Letter_Head_2026.docx is
+  // left out of the Word export below (colors/company text still match) —
+  // embedding it would mean shipping the ~580KB logo image through the
+  // docx ImageRun API. Say the word kung gusto mo talaga isama yung logo
+  // sa .docx and we can wire that in too.
+  const handleDownloadPerformanceWord = async () => {
+    if (!performanceData) return;
+    setDownloadingWord(true);
+    try {
+      const { Document, Packer, Paragraph, TextRun, AlignmentType, HeadingLevel, BorderStyle } = await import("docx");
+      const sc = performanceData;
+      const firstName = sc.full_name?.split(" ")[0] || "";
+      const year = new Date().getFullYear();
+
+      const doc = new Document({
+        sections: [
+          {
+            children: [
+              // --- Letterhead: mirrors Letter_Head_2026.docx (logo/text
+              // header is skipped here — see note below the function —
+              // but the company name, colors and divider line match it).
+              new Paragraph({
+                alignment: AlignmentType.RIGHT,
+                children: [
+                  new TextRun({ text: "COSMOPOLITAN ", bold: true, color: "013F99", font: "Roboto" }),
+                  new TextRun({ text: "CLIMBS LIFE PLAN INC.", bold: true, color: "F3CF47", font: "Roboto" }),
+                ],
+              }),
+              new Paragraph({
+                alignment: AlignmentType.RIGHT,
+                children: [new TextRun({ text: "35 Jesus V. Seriña St., Brgy. Carmen, Cagayan de Oro City", size: 15 })],
+              }),
+              new Paragraph({
+                alignment: AlignmentType.RIGHT,
+                children: [new TextRun({ text: "Tel. No: (088) 880-1574; Hotline No: +63 917 154 3459 / +63 998 953 4937", size: 15 })],
+              }),
+              new Paragraph({
+                alignment: AlignmentType.RIGHT,
+                border: { bottom: { style: BorderStyle.SINGLE, size: 12, color: "0B0796", space: 6 } },
+                children: [new TextRun({ text: "Email Address: cclpi.preneed@cclpi.com.ph; website: cclpi.com.ph", size: 15 })],
+                spacing: { after: 300 },
+              }),
+              new Paragraph({
+                text: "Performance Letter",
+                heading: HeadingLevel.HEADING_1,
+                spacing: { after: 300 },
+              }),
+              new Paragraph({ children: [new TextRun(`Dear ${firstName},`)], spacing: { after: 200 } }),
+              new Paragraph({
+                children: [
+                  new TextRun(
+                    `This letter is to recognize the performance of ${sc.full_name}` +
+                    (sc.id_no ? ` (Sales Counselor Code: ${sc.id_no})` : "") +
+                    (sc.agency ? ` under ${sc.agency}` : "") + "."
+                  ),
+                ],
+                spacing: { after: 200 },
+              }),
+              new Paragraph({
+                children: [new TextRun("[Performance details / metrics go here.]")],
+                spacing: { after: 200 },
+              }),
+              new Paragraph({
+                children: [new TextRun("Thank you for your continued dedication and hard work.")],
+                spacing: { after: 400 },
+              }),
+              new Paragraph({ children: [new TextRun("Warm regards,")], spacing: { after: 400 } }),
+              new Paragraph({ children: [new TextRun({ text: COMPANY.signatoryName, bold: true })] }),
+              new Paragraph({ children: [new TextRun(COMPANY.signatoryTitle)], spacing: { after: 600 } }),
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [
+                  new TextRun({ text: `-------------------- cc: H.R. Files ${year} --------------------`, italics: true, color: "0070C0" }),
+                ],
+              }),
+            ],
+          },
+        ],
+      });
+
+      const blob = await Packer.toBlob(doc);
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `${sc.full_name?.replace(/\s+/g, "_") || sc.id_no}_Performance_Letter.docx`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+    } catch (err) {
+      console.error("Word export failed:", err);
+      alert(
+        "Error generating Word document: " + err.message +
+        "\n\nMake sure the 'docx' package is installed (npm install docx)."
+      );
+    } finally {
+      setDownloadingWord(false);
     }
   };
 
@@ -729,6 +972,21 @@ color: "#fff",
         Sync Supabase
       </MenuItem>
 
+      {/* SYNC PRODUCTION */}
+<MenuItem
+  onClick={() => {
+    setSyncMenuOpen(false);
+    handleSyncProduction();
+  }}
+  color="#013F99"
+>
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+    <path d="M3 3v18h18" />
+    <path d="M18.7 8l-5.1 5.1-2.8-2.8L7 14" />
+  </svg>
+  Sync SC Production
+</MenuItem>
+
 
       {/* SYNC CARDEXCHANGE */}
       <MenuItem
@@ -913,6 +1171,13 @@ onClick={() => {
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
                                     Print Letter
                                   </MenuItem>
+                                  <MenuItem
+                                    onClick={() => openPerformance(sc)}
+                                    color="#0d9488"
+                                  >
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 3v18h18"/><path d="M18.7 8l-5.1 5.1-2.8-2.8L7 14"/></svg>
+                                    Performance Letter
+                                  </MenuItem>
                                   <MenuItem onClick={() => { handleDownloadQr(sc); setOpenMenuId(null); }} color="#013F99">
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><line x1="17" y1="17" x2="17" y2="21"/><line x1="21" y1="17" x2="21" y2="21"/><line x1="17" y1="21" x2="21" y2="21"/></svg>
                                     Download QR
@@ -1036,52 +1301,52 @@ onClick={() => {
                     </div>
 
                     <div style={{ flex: 1 }}>
-<label
-  style={{
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 8,
-    padding: "9px 14px",
-    background: "#013F99",
-    color: "#fff",
-    borderRadius: 8,
-    fontSize: 12,
-    fontWeight: 600,
-    cursor: "pointer",
-    fontFamily: "'Poppins', sans-serif",
-    transition: "0.2s",
-  }}
->
-  <svg
-    width="15"
-    height="15"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-    <polyline points="17 8 12 3 7 8" />
-    <line x1="12" y1="3" x2="12" y2="15" />
-  </svg>
+                      <label
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 8,
+                          padding: "9px 14px",
+                          background: "#013F99",
+                          color: "#fff",
+                          borderRadius: 8,
+                          fontSize: 12,
+                          fontWeight: 600,
+                          cursor: "pointer",
+                          fontFamily: "'Poppins', sans-serif",
+                          transition: "0.2s",
+                        }}
+                      >
+                        <svg
+                          width="15"
+                          height="15"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                          <polyline points="17 8 12 3 7 8" />
+                          <line x1="12" y1="3" x2="12" y2="15" />
+                        </svg>
 
-  Choose Picture
+                        Choose Picture
 
-  <input
-    type="file"
-    accept="image/jpeg,image/png,image/webp"
-    onChange={(e) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
 
-      setPictureFile(file);
-      setPicturePreview(URL.createObjectURL(file));
-    }}
-    style={{ display: "none" }}
-  />
-</label>
+                            setPictureFile(file);
+                            setPicturePreview(URL.createObjectURL(file));
+                          }}
+                          style={{ display: "none" }}
+                        />
+                      </label>
 
                       <div
                         style={{
@@ -1112,7 +1377,7 @@ onClick={() => {
         )}
       </div>
 
-      {/* PRINT PREVIEW */}
+      {/* PRINT PREVIEW — Welcome Letter */}
       {printData && (
         <div style={PRINT_MODAL_OVERLAY} className="no-print-overlay">
           <div style={PRINT_MODAL_TOOLBAR} className="no-print">
@@ -1135,6 +1400,113 @@ onClick={() => {
           </div>
         </div>
       )}
+
+      {/* PRINT PREVIEW — Performance Letter (same pattern as the Welcome
+          Letter above, plus a Word download since this one gets sent out
+          per counselor). */}
+{performanceData && (
+  <div style={PRINT_MODAL_OVERLAY} className="no-print-overlay">
+
+    {/* HEADER / TOOLBAR */}
+    <div
+      className="no-print"
+      style={{
+        background: "#ffffff",
+        borderRadius: 14,
+        padding: "12px 16px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 16,
+        marginBottom: 14,
+        boxShadow: "0 1px 3px rgba(15, 23, 42, 0.08)",
+      }}
+    >
+      {/* LEFT */}
+      <div
+        style={{
+          minWidth: 0,
+          flex: 1,
+        }}
+      >
+        <div
+          style={{
+            fontSize: 16,
+            fontWeight: 700,
+            color: "#0b1a3b",
+            lineHeight: 1.3,
+          }}
+        >
+          Sales Counselor Performance Letter
+        </div>
+
+        <div
+          style={{
+            marginTop: 4,
+            fontSize: 12,
+            color: "#64748b",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+        >
+          {performanceData.full_name || performanceData.id_no}
+        </div>
+      </div>
+
+      {/* RIGHT */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          flexShrink: 0,
+        }}
+      >
+        <button
+          onClick={() => window.print()}
+          style={{
+            padding: "11px 16px",
+            border: "none",
+            borderRadius: 9,
+            background: "#064da5",
+            color: "#ffffff",
+            fontSize: 14,
+            fontWeight: 700,
+            cursor: "pointer",
+          }}
+        >
+          Print
+        </button>
+
+        <button
+          onClick={() => setPerformanceData(null)}
+          style={{
+            padding: "10px 17px",
+            border: "1px solid #d7dee8",
+            borderRadius: 9,
+            background: "#ffffff",
+            color: "#111827",
+            fontSize: 14,
+            fontWeight: 500,
+            cursor: "pointer",
+          }}
+        >
+          Close
+        </button>
+      </div>
+    </div>
+
+    {/* LETTER PREVIEW */}
+    <div
+      style={PRINT_MODAL_SCROLL}
+      className="no-print-scroll"
+    >
+      <PerformanceSalesCounselor sc={performanceData} />
+    </div>
+
+  </div>
+)}
 
       {/* REUSABLE TOAST NOTIFICATION */}
       <ConfirmModal
@@ -1267,6 +1639,8 @@ function SCLetter({ sc }) {
     </div>
   );
 }
+
+
 
 
 

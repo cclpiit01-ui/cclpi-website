@@ -43,6 +43,12 @@ import DigitalCard from "@/pages/admin/DigitalCard";
 import SalesCounselorCard from "@/pages/admin/SalesCounselorCard";
 import CardManagement from "@/pages/admin/CardManagement";
 import SyncSalesCounselors from "@/pages/admin/SyncSalesCounselors";
+import UnitManagerManagement from "@/pages/admin/UnitManagerManagement";
+import AgencyManagerManagement from "@/pages/admin/AgencyManagerManagement";
+import ProductionSalesCounselor from "@/pages/admin/ProductionSalesCounselor";
+import SalesCoordinatorManagement from "@/pages/admin/SalesCoordinatorManagement";
+import PerformanceEmailManagement from "@/pages/admin/PerformanceEmailManagement";
+import InvitationRSVP from "@/components/InvitationRSVP";
 
 export default function App() {
   return (
@@ -58,13 +64,19 @@ export default function App() {
             <Route path="roles" element={<RoleManagement />} />
             <Route path="board-of-directors" element={<BoardOfDirectors />} />
             <Route path="sales-counselors" element={<SalesCounselorManagement />} />
+            <Route path="unit-manager" element={<UnitManagerManagement />} />
+            <Route path="/admin/agency" element={<AgencyManagerManagement />} />
+            <Route path="/admin/production-sc" element={<ProductionSalesCounselor />} />
+            <Route path="/admin/sales-coordinators" element={<SalesCoordinatorManagement />} />
             <Route path="/admin/hmo" element={<HMOManagement />} />
             <Route path="/admin/events" element={<EventManagement />} />
             <Route path="/admin/cards" element={<CardManagement />} />
             <Route path="sync-sales-counselors" element={<SyncSalesCounselors />} />
+            <Route path="/admin/performance-emails" element={<PerformanceEmailManagement />}/>
           </Route>
 
            {/* Public links */}
+           <Route path="/rsvp/invite/:token" element={<InvitationRSVP />}/>
           <Route path="/rsvp/:slug" element={<EventRSVP />} />
           <Route path="/card/:slug" element={<DigitalCard />} />
           <Route path="/sales-counselor/:id" element={<SalesCounselorCard />} />
