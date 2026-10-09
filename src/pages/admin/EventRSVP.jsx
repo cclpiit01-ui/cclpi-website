@@ -105,7 +105,15 @@ export default function EventRSVP() {
             <img src={CCLPILogo} alt="CCLPI" style={{ height: 40, marginBottom: 12 }} />
             <h1 style={{ fontSize: 20, fontWeight: 700, color: "#0b1a3b", margin: 0 }}>{event.title}</h1>
             {event.description && <p style={{ fontSize: 13, color: "#64748b", marginTop: 8 }}>{event.description}</p>}
-            {event.event_date && <p style={{ fontSize: 13, color: "#4CB1E9", fontWeight: 600, marginTop: 8 }}>📅 {new Date(event.event_date).toLocaleString("en-PH", { dateStyle: "full", timeStyle: "short" })}</p>}
+            {event.event_date && (
+              <p style={{ fontSize: 13, color: "#4CB1E9", fontWeight: 600, marginTop: 8 }}>
+                📅 {new Date(event.event_date).toLocaleString("en-PH", {
+                  timeZone: "Asia/Manila",
+                  dateStyle: "full",
+                  timeStyle: "short",
+                })}
+              </p>
+            )}
             {event.location && <p style={{ fontSize: 13, color: "#64748b" }}>📍 {event.location}</p>}
           </div>
 
