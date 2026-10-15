@@ -1564,7 +1564,7 @@ function MenuItem({ onClick, color, children }) {
 function SCLetter({ sc }) {
   const recipientName = sc.full_name?.trim() || "Sales Counselor";
   return (
-    <div className="print-area" style={{ width: "210mm", minHeight: "297mm", background: "#fff", boxShadow: "0 2px 12px rgba(0,0,0,0.25)", display: "flex", flexDirection: "column", fontFamily: "'Poppins', sans-serif" }}>
+    <div className="print-area" style={{ width: "215.9mm", minHeight: "279.4mm", background: "#fff", boxShadow: "0 2px 12px rgba(0,0,0,0.25)", display: "flex", flexDirection: "column", fontFamily: "'Poppins', sans-serif" }}>
       <div style={{ position: "relative", height: "92mm", overflow: "hidden" }}>
         {/* Real header wave graphic from the CCLPI letterhead template */}
         <img
@@ -1669,8 +1669,8 @@ const PRINT_CSS = `
     position: absolute;
     top: 0;
     left: 0;
-    width: 210mm;
-    min-height: 297mm;
+    width: 215.9mm;
+    min-height: 279.4mm;
     box-shadow: none !important;
   }
   .no-print { display: none !important; }
