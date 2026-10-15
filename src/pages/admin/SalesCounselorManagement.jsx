@@ -592,7 +592,8 @@ const openPerformance = async (sc) => {
     try {
       const { Document, Packer, Paragraph, TextRun, AlignmentType, HeadingLevel, BorderStyle } = await import("docx");
       const sc = performanceData;
-      const firstName = sc.full_name?.split(" ")[0] || "";
+      //const firstName = sc.full_name?.split(" ")[0] || "";
+      const recipientName = sc.full_name?.trim() || "Sales Counselor";
       const year = new Date().getFullYear();
 
       const doc = new Document({
@@ -628,7 +629,7 @@ const openPerformance = async (sc) => {
                 heading: HeadingLevel.HEADING_1,
                 spacing: { after: 300 },
               }),
-              new Paragraph({ children: [new TextRun(`Dear ${firstName},`)], spacing: { after: 200 } }),
+              new Paragraph({ children: [new TextRun(`Dear ${recipientName},`)], spacing: { after: 200 } }),
               new Paragraph({
                 children: [
                   new TextRun(
@@ -1561,7 +1562,7 @@ function MenuItem({ onClick, color, children }) {
 }
 
 function SCLetter({ sc }) {
-  const firstName = sc.full_name?.split(" ")[0] || "";
+  const recipientName = sc.full_name?.trim() || "Sales Counselor";
   return (
     <div className="print-area" style={{ width: "210mm", minHeight: "297mm", background: "#fff", boxShadow: "0 2px 12px rgba(0,0,0,0.25)", display: "flex", flexDirection: "column", fontFamily: "'Poppins', sans-serif" }}>
       <div style={{ position: "relative", height: "92mm", overflow: "hidden" }}>
@@ -1603,7 +1604,7 @@ function SCLetter({ sc }) {
       </div>
 
       <div style={{ padding: "10mm 15mm 12mm", fontSize: "10.5pt", color: "#0b1a3b", lineHeight: 1.5, textAlign: "justify" }}>
-        <p>Dear <b>{firstName}</b>,</p>
+        <p>Dear <b>{recipientName}</b>,</p>
         <br></br>
         <p>
           It is our pleasure to welcome you as Sales Counselor for Angelica Life Plan. For easier identification, we
@@ -1659,9 +1660,23 @@ const PRINT_CSS = `
 @media print {
   @page { size: A4; margin: 0; }
   body * { visibility: hidden; }
-  .print-area, .print-area * { visibility: visible; }
-  .print-area { position: absolute; top: 0; left: 0; width: 210mm; min-height: 297mm; box-shadow: none !important; }
+  .print-area, .print-area * {
+    visibility: visible;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  .print-area {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 210mm;
+    min-height: 297mm;
+    box-shadow: none !important;
+  }
   .no-print { display: none !important; }
-  .no-print-scroll { padding: 0 !important; overflow: visible !important; }
+  .no-print-scroll {
+    padding: 0 !important;
+    overflow: visible !important;
+  }
 }
 `;
