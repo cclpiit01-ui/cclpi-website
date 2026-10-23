@@ -1,15 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  Search,
-  RefreshCw,
-  MoreVertical,
-  Pencil,
-  X,
-  Save,
-  Users,
-} from "lucide-react";
-
+import { Search, RefreshCw, MoreVertical, Pencil, X, Save, Users} from "lucide-react";
 import { supabaseEmployees } from "@/lib/supabaseEmployees";
+
+
 
 const TABLE = "sales_coordinators";
 

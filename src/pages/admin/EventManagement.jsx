@@ -122,29 +122,158 @@ const openCustomQrModal = async (invitation) => {
     showToast(String("Error generating QR: " + error.message), "error");
   }
 };
+
+
 const handleDownloadCustomQr = () => {
   if (!customQrDataUrl || !selectedInvitation) return;
+
   const img = new Image();
+
   img.onload = () => {
+    const width = 600;
+    const qrSize = 440;
+    const qrY = 55;
+    const padding = 45;
+
+    const organizationName = String(
+      selectedInvitation.organization_name || "Invitation"
+    ).trim();
+
+    const limit = Number(selectedInvitation.participant_limit);
+
+    // Temporary canvas for measuring text
+    const measureCanvas = document.createElement("canvas");
+    const measureCtx = measureCanvas.getContext("2d");
+
+    const fontSize = 30;
+    const lineHeight = 40;
+    const maxTextWidth = width - padding * 2;
+
+    measureCtx.font = `bold ${fontSize}px Arial`;
+
+    // Automatically wrap long organization names
+    const words = organizationName.split(/\s+/);
+    const lines = [];
+    let currentLine = "";
+
+    words.forEach((word) => {
+      const testLine = currentLine
+        ? `${currentLine} ${word}`
+        : word;
+
+      if (
+        measureCtx.measureText(testLine).width > maxTextWidth &&
+        currentLine
+      ) {
+        lines.push(currentLine);
+        currentLine = word;
+      } else {
+        currentLine = testLine;
+      }
+    });
+
+    if (currentLine) lines.push(currentLine);
+
+    // Dynamic positions
+    const nameY = qrY + qrSize + 45;
+    const nameHeight = lines.length * lineHeight;
+    const attendeeY = nameY + nameHeight + 30;
+    const height = attendeeY + 85;
+
     const canvas = document.createElement("canvas");
-    canvas.width = img.width;
-    canvas.height = img.height;
+    canvas.width = width;
+    canvas.height = height;
+
     const ctx = canvas.getContext("2d");
-    // White background para JPEG
+
+    // White background
     ctx.fillStyle = "#FFFFFF";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(img, 0, 0);
+    ctx.fillRect(0, 0, width, height);
+
+    // Outer navy border
+    ctx.strokeStyle = "#013F99";
+    ctx.lineWidth = 3;
+    ctx.strokeRect(15, 15, width - 30, height - 30);
+
+    // Inner gold border
+    ctx.strokeStyle = "#D4AF37";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(22, 22, width - 44, height - 44);
+
+    // Existing scannable QR
+    const qrX = (width - qrSize) / 2;
+    ctx.drawImage(img, qrX, qrY, qrSize, qrSize);
+
+    // Organization name
+    ctx.fillStyle = "#0b1a3b";
+    ctx.font = `bold ${fontSize}px Arial`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    lines.forEach((line, index) => {
+      ctx.fillText(
+        line,
+        width / 2,
+        nameY + index * lineHeight,
+        maxTextWidth
+      );
+    });
+
+    // Decorative divider
+    const dividerY = nameY + nameHeight + 2;
+
+    const gradient = ctx.createLinearGradient(
+      100, dividerY, 500, dividerY
+    );
+
+    gradient.addColorStop(0, "#013F99");
+    gradient.addColorStop(0.6, "#4CB1E9");
+    gradient.addColorStop(1, "#D4AF37");
+
+    ctx.fillStyle = gradient;
+    ctx.fillRect(100, dividerY, 400, 3);
+
+    // Attendee count
+    ctx.fillStyle = "#0b1a3b";
+    ctx.font = "bold 25px Arial";
+    ctx.textAlign = "center";
+
+    ctx.fillText(
+      `Good for ${limit} attendees`,
+      width / 2,
+      attendeeY
+    );
+
+    // Download JPEG
     const jpegUrl = canvas.toDataURL("image/jpeg", 1.0);
+
     const link = document.createElement("a");
-    const safeName = selectedInvitation.organization_name
+
+    const safeName = organizationName
       .replace(/[^a-z0-9]/gi, "_")
       .toLowerCase();
-    link.download = `${safeName}_${selectedInvitation.participant_limit}_participants_QR.jpg`;
+
+    link.download = `${safeName}_${limit}_attendees_QR.jpg`;
     link.href = jpegUrl;
+
+    document.body.appendChild(link);
     link.click();
+    link.remove();
+
+    showToast(
+      "QR Code downloaded successfully!",
+      "success"
+    );
   };
+
+  img.onerror = () => {
+    showToast("Unable to load QR Code.", "error");
+  };
+
   img.src = customQrDataUrl;
 };
+
+
 const handleCopyCustomInvitationLink = async () => {
   if (!customInvitationUrl) return;
   try {

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabaseEmployees } from "@/lib/supabaseEmployees";
 import * as XLSX from "xlsx";
-
+import sqlWasmUrl from "sql.js/dist/sql-wasm.wasm?url";
 export default function HMOManagement() {
   const [employees, setEmployees] = useState([]);
   const [membershipMap, setMembershipMap] = useState({});   // employee_id -> current hmo_employees row
@@ -241,10 +241,11 @@ export default function HMOManagement() {
   };
 
   const handleExportSQLite = async () => {
+    
     try {
+      
       const initSqlJs = (await import("sql.js")).default;
-      const wasmUrl = "https://sql.js.org/dist/sql-wasm.wasm";
-      const wasmResponse = await fetch(wasmUrl);
+const wasmResponse = await fetch(sqlWasmUrl);
       if (!wasmResponse.ok) throw new Error("Hindi makuha ang SQLite engine (wasm file). I-check ang internet connection.");
       const wasmBinary = await wasmResponse.arrayBuffer();
       const SQL = await initSqlJs({ wasmBinary });

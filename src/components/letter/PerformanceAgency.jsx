@@ -7,18 +7,18 @@ import mvdSignature from "../../assets/mvd-signature.png";
 // NOT here on purpose: they will come from the API later, so for now they
 // are read from `sc.active_counselors`, `sc.producing_unit_managers` and
 // `sc.first_year_premium` (null/undefined -> prints a blank line to fill by hand).
-const LETTER_DATE = "October 01, 2026";
-const PERIOD_COVERED = "January 01-September 30, 2026";
-const IMPROVEMENT_DEADLINE = "December 31, 2026";
-const REQUIRED_COUNSELORS = "At least 13";
-const REQUIRED_UNIT_MANAGERS = "At least 3";
-const REQUIRED_FYP = 300000;
+export const LETTER_DATE = "October 01, 2026";
+export const PERIOD_COVERED = "January 01-September 30, 2026";
+export const IMPROVEMENT_DEADLINE = "December 31, 2026";
+export const REQUIRED_COUNSELORS = "At least 13";
+export const REQUIRED_UNIT_MANAGERS = "At least 3";
+export const REQUIRED_FYP = 300000;
 
-const SIGNATORY = {
+export const SIGNATORY = {
   name: "KATRINA AMOR D. CORPUZ",
   title: "National Sales and Distribution Manager",
 };
-const NOTED_BY = {
+export const NOTED_BY = {
   name: "MANSUETO V. DELA PEÑA",
   title: "President and CEO",
 };
@@ -33,7 +33,7 @@ const formatPeso = (value) =>
 const formatCount = (value) =>
   value === null || value === undefined || value === "" ? BLANK_LINE : String(value);
 
-const RESPONSIBILITIES = [
+export const RESPONSIBILITIES = [
   "Solicit or procure applications for CCLPI Preneed Plans and collect and remit the corresponding premiums in accordance with the Agency Agreement and Company procedures.",
   "Submit all Preneed Plan applications procured by the Agency to CCLPI and not to any other company.",
   "Account for and turn over to CCLPI all Company funds received by the Agency within the period prescribed under the Agreement and applicable Company instructions.",

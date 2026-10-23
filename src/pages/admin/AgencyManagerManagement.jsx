@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabaseEmployees } from "@/lib/supabaseEmployees";
 import PerformanceAgency from "@/components/letter/PerformanceAgency";
 import Toast from "@/components/Toast";
+import { downloadPerformanceAgencyDocx } from "@/utils/downloadPerformanceAgencyDocx";
 
 const AGENCY_TABLE = "production_agency";
 const ITEMS_PER_PAGE = 10;
@@ -267,6 +268,18 @@ export default function AgencyManagerManagement() {
 
   const handlePrintPerformance = () => {
     window.print();
+  };
+  const handleDownloadWord = async () => {
+    try {
+      await downloadPerformanceAgencyDocx(performanceData);
+    } catch (err) {
+      console.error(err);
+      showToast(
+        "Failed to generate Word file: " + err.message,
+        "error",
+        5000
+      );
+    }
   };
 
   return (
@@ -1134,6 +1147,21 @@ export default function AgencyManagerManagement() {
                   }}
                 >
                   Print
+                </button>
+
+                <button
+                      onClick={handleDownloadWord}
+                      style={{
+                        padding: "9px 16px",
+                        border: "1px solid #013F99",
+                        borderRadius: 8,
+                        background: "#fff",
+                        color: "#013F99",
+                        cursor: "pointer",
+                        fontWeight: 600,
+                      }}
+                    >
+                      Download Word
                 </button>
 
                 <button
