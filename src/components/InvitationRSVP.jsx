@@ -98,9 +98,9 @@ const validateParticipants = () => {
       const label = `Participant ${i + 1}`;
       if (!participant.full_name.trim()) return `Please enter the full name for ${label}.`;
       if (!participant.contact_number.trim()) return `Please enter the contact number for ${label}.`;
-      if (participant.requires_air_travel === null) return `Please answer the air travel requirement for ${label}.`;
-      if (participant.requires_air_travel && !participant.birthdate) return `Please enter the birthdate for ${label}.`;
-      if (participant.requires_air_travel && !participant.valid_id_file) return `Please upload a valid ID for ${label}.`;
+      if (invitation?.company_sponsored_travel === true && participant.requires_air_travel === null) return `Please select Air Travel or Land Travel for ${label}.`;
+      if (invitation?.company_sponsored_travel === true && participant.requires_air_travel === true && !participant.birthdate) return `Please enter the birthdate for ${label}.`;
+      if (invitation?.company_sponsored_travel === true && participant.requires_air_travel === true && !participant.valid_id_file) return `Please upload a valid ID for ${label}.`;
     }
     return "";
   };
@@ -110,13 +110,25 @@ const validateParticipants = () => {
     if (validationError || !invitation) return;
     setSubmitting(true);
     try {
+      const { data: latestInvitation, error: invitationError } = await supabaseEmployees
+        .from("event_invitations")
+        .select("company_sponsored_travel, participant_limit")
+        .eq("id", invitation.id)
+        .eq("invitation_token", token)
+        .single();
+      if (invitationError) throw invitationError;
+      const sponsoredTravel = latestInvitation.company_sponsored_travel === true;
+      if (sponsoredTravel !== (invitation.company_sponsored_travel === true)) {
+        setInvitation(prev => ({ ...prev, company_sponsored_travel: sponsoredTravel }));
+        throw new Error("Travel arrangements have changed. Please review the form and submit again.");
+      }
       const { data: currentParticipants, error: countError } = await supabaseEmployees
         .from("event_invitation_participants")
         .select("id")
         .eq("invitation_id", invitation.id);
       if (countError) throw countError;
       const currentCount = currentParticipants?.length || 0;
-      const currentRemaining = Math.max(0, Number(invitation.participant_limit || 0) - currentCount);
+      const currentRemaining = Math.max(0, Number(latestInvitation.participant_limit || 0) - currentCount);
       setExistingParticipantCount(currentCount);
       setRemainingSlots(currentRemaining);
       if (currentRemaining === 0) {
@@ -134,7 +146,7 @@ const validateParticipants = () => {
       for (let i = 0; i < participants.length; i++) {
         const participant = participants[i];
         let validIdPath = null;
-        if (participant.requires_air_travel && participant.valid_id_file) {
+        if (sponsoredTravel && participant.requires_air_travel === true && participant.valid_id_file) {
           const file = participant.valid_id_file;
           const ext = file.name.split(".").pop()?.toLowerCase() || "file";
           const safeExt = ext.replace(/[^a-z0-9]/g, "") || "file";
@@ -151,8 +163,8 @@ const validateParticipants = () => {
           invitation_id: invitation.id,
           full_name: participant.full_name.trim(),
           contact_number: participant.contact_number.trim(),
-          requires_air_travel: participant.requires_air_travel,
-          birthdate: participant.requires_air_travel ? participant.birthdate : null,
+          requires_air_travel: sponsoredTravel && participant.requires_air_travel === true,
+          birthdate: sponsoredTravel && participant.requires_air_travel === true ? participant.birthdate : null,
           valid_id_url: validIdPath,
         });
       }
@@ -544,9 +556,10 @@ const handleDeclineInvitation = async () => {
                           style={inputStyle}
                         />
                       </div>
+                      {invitation.company_sponsored_travel === true && (
                       <div>
                         <label style={{ ...labelStyle, marginBottom: 7 }}>
-                          Requires Air Travel?
+                          Travel Arrangement
                         </label>
                         <div style={{ display: "flex", gap: 10 }}>
                           <button
@@ -556,7 +569,7 @@ const handleDeclineInvitation = async () => {
                             }
                             style={toggleStyle(participant.requires_air_travel === true)}
                           >
-                            Yes
+                            Air Travel
                           </button>
                           <button
                             type="button"
@@ -565,7 +578,7 @@ const handleDeclineInvitation = async () => {
                             }
                             style={toggleStyle(participant.requires_air_travel === false)}
                           >
-                            No
+                            Land Travel
                           </button>
                         </div>
                         {participant.requires_air_travel === true && (
@@ -613,6 +626,7 @@ const handleDeclineInvitation = async () => {
                           </div>
                         )}
                       </div>
+                      )}
                     </div>
                   </div>
                 ))}

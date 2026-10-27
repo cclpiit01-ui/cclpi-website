@@ -49,6 +49,7 @@ const openNewInvitationForm = () => {
   setInvitationForm({
     organization_name: "",
     participant_limit: 1,
+    company_sponsored_travel: false,
   });
   setShowInvitationForm(true);
 };
@@ -59,18 +60,19 @@ const handleSaveInvitation = async () => {
     return;
   }
   const participantLimit = Number(invitationForm.participant_limit);
-  if (!participantLimit || participantLimit < 1) {
+if (!Number.isInteger(participantLimit) || participantLimit < 1)  {
     showToast("Participant limit must be at least 1.", "info");
     return;
   }
   setSavingInvitation(true);
   const { error } = await supabaseEmployees
     .from("event_invitations")
-    .insert({
-      event_id: invitationEvent.id,
-      organization_name: invitationForm.organization_name.trim(),
-      participant_limit: participantLimit,
-    });
+.insert({
+  event_id: invitationEvent.id,
+  organization_name: invitationForm.organization_name.trim(),
+  participant_limit: participantLimit,
+  company_sponsored_travel: invitationForm.company_sponsored_travel,
+});
   setSavingInvitation(false);
   if (error) {
     showToast(String("Error creating invitation: " + error.message), "error");
@@ -99,8 +101,9 @@ setShowInvitationForm(false);
 setInvitationForm({
   organization_name: "",
   participant_limit: 1,
+  company_sponsored_travel: false,
 });
-showToast("Custom invitation created successfully!", "info");
+showToast("Custom invitation created successfully!", "success");
 };
 // ── CUSTOM INVITATION QR ─────────────────────────────
 const openCustomQrModal = async (invitation) => {
@@ -124,146 +127,367 @@ const openCustomQrModal = async (invitation) => {
 };
 
 
+
 const handleDownloadCustomQr = () => {
   if (!customQrDataUrl || !selectedInvitation) return;
 
   const img = new Image();
 
   img.onload = () => {
-    const width = 600;
-    const qrSize = 440;
-    const qrY = 55;
-    const padding = 45;
+    try {
+      // High-resolution landscape sticker
+      const width = 1200;
+      const height = 600;
 
-    const organizationName = String(
-      selectedInvitation.organization_name || "Invitation"
-    ).trim();
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
 
-    const limit = Number(selectedInvitation.participant_limit);
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Canvas is not supported.");
 
-    // Temporary canvas for measuring text
-    const measureCanvas = document.createElement("canvas");
-    const measureCtx = measureCanvas.getContext("2d");
+      const organizationName = String(
+        selectedInvitation.organization_name || "Invitation"
+      ).trim();
 
-    const fontSize = 30;
-    const lineHeight = 40;
-    const maxTextWidth = width - padding * 2;
+      const limit = Number(selectedInvitation.participant_limit);
 
-    measureCtx.font = `bold ${fontSize}px Arial`;
+      const NAVY = "#011025";
+      const GOLD = "#D4AF37";
+      const LIGHT_GOLD = "#F3CF77";
+      const WHITE = "#FFFFFF";
+      const MUTED = "#E2E8F0";
 
-    // Automatically wrap long organization names
-    const words = organizationName.split(/\s+/);
-    const lines = [];
-    let currentLine = "";
+      // Rounded rectangle helper
+      const roundedRect = (x, y, w, h, r) => {
+        const radius = Math.min(r, w / 2, h / 2);
 
-    words.forEach((word) => {
-      const testLine = currentLine
-        ? `${currentLine} ${word}`
-        : word;
+        ctx.beginPath();
+        ctx.moveTo(x + radius, y);
+        ctx.lineTo(x + w - radius, y);
+        ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+        ctx.lineTo(x + w, y + h - radius);
+        ctx.quadraticCurveTo(
+          x + w, y + h, x + w - radius, y + h
+        );
+        ctx.lineTo(x + radius, y + h);
+        ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
+        ctx.lineTo(x, y + radius);
+        ctx.quadraticCurveTo(x, y, x + radius, y);
+        ctx.closePath();
+      };
 
-      if (
-        measureCtx.measureText(testLine).width > maxTextWidth &&
-        currentLine
-      ) {
-        lines.push(currentLine);
-        currentLine = word;
-      } else {
-        currentLine = testLine;
-      }
-    });
+      // Text wrapping helper
+      const wrapText = (text, maxWidth, font) => {
+        ctx.font = font;
 
-    if (currentLine) lines.push(currentLine);
+        const words = String(text).split(/\s+/);
+        const lines = [];
+        let line = "";
 
-    // Dynamic positions
-    const nameY = qrY + qrSize + 45;
-    const nameHeight = lines.length * lineHeight;
-    const attendeeY = nameY + nameHeight + 30;
-    const height = attendeeY + 85;
+        for (const word of words) {
+          const test = line ? `${line} ${word}` : word;
 
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
+          if (ctx.measureText(test).width <= maxWidth) {
+            line = test;
+          } else {
+            if (line) {
+              lines.push(line);
+              line = "";
+            }
 
-    const ctx = canvas.getContext("2d");
+            // Split unusually long words
+            let part = "";
 
-    // White background
-    ctx.fillStyle = "#FFFFFF";
-    ctx.fillRect(0, 0, width, height);
+            for (const char of word) {
+              if (
+                part &&
+                ctx.measureText(part + char).width > maxWidth
+              ) {
+                lines.push(part);
+                part = char;
+              } else {
+                part += char;
+              }
+            }
 
-    // Outer navy border
-    ctx.strokeStyle = "#013F99";
-    ctx.lineWidth = 3;
-    ctx.strokeRect(15, 15, width - 30, height - 30);
+            line = part;
+          }
+        }
 
-    // Inner gold border
-    ctx.strokeStyle = "#D4AF37";
-    ctx.lineWidth = 2;
-    ctx.strokeRect(22, 22, width - 44, height - 44);
+        if (line) lines.push(line);
 
-    // Existing scannable QR
-    const qrX = (width - qrSize) / 2;
-    ctx.drawImage(img, qrX, qrY, qrSize, qrSize);
+        return lines;
+      };
 
-    // Organization name
-    ctx.fillStyle = "#0b1a3b";
-    ctx.font = `bold ${fontSize}px Arial`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
+      // Background
+      ctx.fillStyle = NAVY;
+      ctx.fillRect(0, 0, width, height);
 
-    lines.forEach((line, index) => {
-      ctx.fillText(
-        line,
-        width / 2,
-        nameY + index * lineHeight,
-        maxTextWidth
+      // Subtle blue background gradient
+      const bgGradient = ctx.createLinearGradient(
+        0, 0, width, height
       );
-    });
+      bgGradient.addColorStop(0, "#011025");
+      bgGradient.addColorStop(0.6, "#061B38");
+      bgGradient.addColorStop(1, "#011025");
 
-    // Decorative divider
-    const dividerY = nameY + nameHeight + 2;
+      ctx.fillStyle = bgGradient;
+      ctx.fillRect(0, 0, width, height);
 
-    const gradient = ctx.createLinearGradient(
-      100, dividerY, 500, dividerY
-    );
+      // Outer gold rounded border
+      roundedRect(24, 20, 1152, 560, 42);
+      ctx.strokeStyle = GOLD;
+      ctx.lineWidth = 3;
+      ctx.stroke();
 
-    gradient.addColorStop(0, "#013F99");
-    gradient.addColorStop(0.6, "#4CB1E9");
-    gradient.addColorStop(1, "#D4AF37");
+      // RSVP heading
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = LIGHT_GOLD;
+      ctx.font = "bold 57px Georgia";
 
-    ctx.fillStyle = gradient;
-    ctx.fillRect(100, dividerY, 400, 3);
+      ctx.fillText("RSVP", 600, 90);
 
-    // Attendee count
-    ctx.fillStyle = "#0b1a3b";
-    ctx.font = "bold 25px Arial";
-    ctx.textAlign = "center";
+      // Decorative heading lines
+      const lineGradient = ctx.createLinearGradient(
+        80, 90, 1120, 90
+      );
+      lineGradient.addColorStop(0, GOLD);
+      lineGradient.addColorStop(0.5, LIGHT_GOLD);
+      lineGradient.addColorStop(1, GOLD);
 
-    ctx.fillText(
-      `Good for ${limit} attendees`,
-      width / 2,
-      attendeeY
-    );
+      ctx.strokeStyle = lineGradient;
+      ctx.lineWidth = 2;
 
-    // Download JPEG
-    const jpegUrl = canvas.toDataURL("image/jpeg", 1.0);
+      ctx.beginPath();
+      ctx.moveTo(95, 90);
+      ctx.lineTo(475, 90);
+      ctx.moveTo(725, 90);
+      ctx.lineTo(1105, 90);
+      ctx.stroke();
 
-    const link = document.createElement("a");
+      // Vertical gold divider
+      ctx.strokeStyle = GOLD;
+      ctx.lineWidth = 2;
 
-    const safeName = organizationName
-      .replace(/[^a-z0-9]/gi, "_")
-      .toLowerCase();
+      ctx.beginPath();
+      ctx.moveTo(725, 155);
+      ctx.lineTo(725, 525);
+      ctx.stroke();
 
-    link.download = `${safeName}_${limit}_attendees_QR.jpg`;
-    link.href = jpegUrl;
+      // LEFT CONTENT
+      ctx.textAlign = "left";
+      ctx.textBaseline = "top";
 
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
+      // Envelope icon
+      ctx.strokeStyle = LIGHT_GOLD;
+      ctx.lineWidth = 3;
 
-    showToast(
-      "QR Code downloaded successfully!",
-      "success"
-    );
+      roundedRect(83, 163, 43, 32, 4);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(84, 166);
+      ctx.lineTo(104.5, 183);
+      ctx.lineTo(125, 166);
+      ctx.stroke();
+
+      // Invitee name
+      const nameX = 145;
+      const nameMaxWidth = 535;
+
+      let nameFontSize = 32;
+      let nameLines = [];
+
+      // Keep long names readable
+      do {
+        nameLines = wrapText(
+          `To: ${organizationName}`,
+          nameMaxWidth,
+          `bold ${nameFontSize}px Arial`
+        );
+
+        if (nameLines.length <= 3) break;
+
+        nameFontSize -= 2;
+      } while (nameFontSize >= 22);
+
+      ctx.fillStyle = WHITE;
+      ctx.font = `bold ${nameFontSize}px Arial`;
+
+      let nameY = 160;
+      const nameLineHeight = nameFontSize + 8;
+
+      nameLines.forEach((line, index) => {
+        ctx.fillText(
+          line,
+          nameX,
+          nameY + index * nameLineHeight
+        );
+      });
+
+      // Registration instructions
+      const instructionY = Math.max(
+        240,
+        nameY + nameLines.length * nameLineHeight + 15
+      );
+
+      const instructions =
+        "Please scan the QR code to complete the registration form and confirm your attendance.";
+
+      const instructionFont = "29px Arial";
+      const instructionLines = wrapText(
+        instructions,
+        600,
+        instructionFont
+      );
+
+      ctx.fillStyle = MUTED;
+      ctx.font = instructionFont;
+
+      instructionLines.forEach((line, index) => {
+        ctx.fillText(
+          line,
+          83,
+          instructionY + index * 36
+        );
+      });
+
+      // Maximum attendees
+      const attendeeText =
+        `Maximum of ${limit} attendee${limit === 1 ? "" : "s"} per invitation.`;
+
+      let attendeeFontSize = 29;
+      let attendeeLines = [];
+
+      do {
+        attendeeLines = wrapText(
+          attendeeText,
+          600,
+          `bold ${attendeeFontSize}px Arial`
+        );
+
+        const attendeeHeight =
+          attendeeLines.length * (attendeeFontSize + 5);
+
+        const availableHeight =
+          535 - (instructionY + instructionLines.length * 36 + 25);
+
+        if (attendeeHeight <= availableHeight) break;
+
+        attendeeFontSize -= 2;
+      } while (attendeeFontSize >= 18);
+
+      const attendeeY =
+        instructionY + instructionLines.length * 36 + 25;
+
+      ctx.fillStyle = LIGHT_GOLD;
+      ctx.font = `bold ${attendeeFontSize}px Arial`;
+
+      attendeeLines.forEach((line, index) => {
+        ctx.fillText(
+          line,
+          83,
+          attendeeY + index * (attendeeFontSize + 5)
+        );
+      });
+
+      // RIGHT QR PANEL
+      const qrPanelX = 784;
+      const qrPanelY = 155;
+      const qrPanelSize = 315;
+
+      // Gold QR frame
+      roundedRect(
+        qrPanelX,
+        qrPanelY,
+        qrPanelSize,
+        qrPanelSize,
+        14
+      );
+      ctx.fillStyle = WHITE;
+      ctx.fill();
+
+      ctx.strokeStyle = LIGHT_GOLD;
+      ctx.lineWidth = 5;
+      ctx.stroke();
+
+      // Existing QR code with white quiet zone
+      const qrSize = 285;
+      const qrX = qrPanelX + (qrPanelSize - qrSize) / 2;
+      const qrY = qrPanelY + (qrPanelSize - qrSize) / 2;
+
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(img, qrX, qrY, qrSize, qrSize);
+      ctx.imageSmoothingEnabled = true;
+
+      // Gold SCAN TO RSVP label
+      const buttonX = 784;
+      const buttonY = 490;
+      const buttonW = 315;
+      const buttonH = 58;
+
+      const buttonGradient = ctx.createLinearGradient(
+        buttonX, buttonY, buttonX, buttonY + buttonH
+      );
+      buttonGradient.addColorStop(0, "#FFE49A");
+      buttonGradient.addColorStop(1, "#D4AF37");
+
+      roundedRect(
+        buttonX,
+        buttonY,
+        buttonW,
+        buttonH,
+        13
+      );
+
+      ctx.fillStyle = buttonGradient;
+      ctx.fill();
+
+      ctx.fillStyle = NAVY;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.font = "bold 29px Arial";
+
+      ctx.fillText(
+        "SCAN TO RSVP",
+        buttonX + buttonW / 2,
+        buttonY + buttonH / 2
+      );
+
+      // Export high-quality JPEG
+      const jpegUrl = canvas.toDataURL(
+        "image/jpeg",
+        1.0
+      );
+
+      const safeName = organizationName
+        .replace(/[^a-z0-9]/gi, "_")
+        .toLowerCase();
+
+      const link = document.createElement("a");
+
+      link.download =
+        `${safeName}_${limit}_attendees_RSVP.jpg`;
+
+      link.href = jpegUrl;
+
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      showToast(
+        "RSVP sticker downloaded successfully!",
+        "success"
+      );
+
+    } catch (error) {
+      showToast(
+        "Error generating RSVP sticker: " + error.message,
+        "error"
+      );
+    }
   };
 
   img.onerror = () => {
@@ -272,6 +496,7 @@ const handleDownloadCustomQr = () => {
 
   img.src = customQrDataUrl;
 };
+
 
 
 const handleCopyCustomInvitationLink = async () => {
@@ -297,6 +522,7 @@ const [invitationEvent, setInvitationEvent] = useState(null);
 const [invitationForm, setInvitationForm] = useState({
   organization_name: "",
   participant_limit: 1,
+  company_sponsored_travel: false,
 });
 const [savingInvitation, setSavingInvitation] = useState(false);
 const [invitationList, setInvitationList] = useState([]);
@@ -313,7 +539,11 @@ const [participantLoading, setParticipantLoading] = useState(false);
   const [removingInvitation, setRemovingInvitation] = useState(false);
   const [invitationActionMenu, setInvitationActionMenu] = useState(null);
   const [editInvitation, setEditInvitation] = useState(null);
-  const [editInvitationForm, setEditInvitationForm] = useState({ organization_name: "", participant_limit: 1 });
+ const [editInvitationForm, setEditInvitationForm] = useState({
+  organization_name: "",
+  participant_limit: 1,
+  company_sponsored_travel: false,
+});
   const [savingInvitationEdit, setSavingInvitationEdit] = useState(false);
   useEffect(() => { fetchEvents(); }, []);
   const fetchEvents = async () => {
@@ -360,9 +590,16 @@ setEventForm({
     setHeadingFile(null);
     setFormOpen(true);
   };
+    const toInputDate = (v) => {
+    if (!v) return "";
+    const d = new Date(v);
+    if (isNaN(d)) return "";
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
   const openEditForm = (event) => {
     setEditingEvent(event);
-    setEventForm({ ...event, form_fields: event.form_fields || [] });
+    setEventForm({ ...event, event_date: toInputDate(event.event_date), form_fields: event.form_fields || [] });
     setBannerFile(null);
     setHeadingFile(null);
     setFormOpen(true);
@@ -426,7 +663,7 @@ if (headingFile) {
 const payload = {
   title: eventForm.title,
   description: eventForm.description || null,
-  event_date: eventForm.event_date || null,
+  event_date: eventForm.event_date ? new Date(eventForm.event_date).toISOString() : null,event_date: eventForm.event_date || null,
   location: eventForm.location || null,
   banner_image_url: bannerUrl || null,
   heading_image_url: headingImageUrl || null,
@@ -514,7 +751,11 @@ const payload = {
   const openEditInvitation = (invitation) => {
     setInvitationActionMenu(null);
     setEditInvitation(invitation);
-    setEditInvitationForm({ organization_name: invitation.organization_name || "", participant_limit: invitation.participant_limit || 1 });
+    setEditInvitationForm({
+  organization_name: invitation.organization_name || "",
+  participant_limit: invitation.participant_limit || 1,
+  company_sponsored_travel: invitation.company_sponsored_travel ?? false,
+});
   };
   const handleSaveInvitationEdit = async () => {
     if (!editInvitation || savingInvitationEdit) return;
@@ -529,6 +770,7 @@ const payload = {
       const { data, error } = await supabaseEmployees.from("event_invitations").update({
         organization_name: organizationName,
         participant_limit: participantLimit,
+        company_sponsored_travel: !!editInvitationForm.company_sponsored_travel,
         updated_at: new Date().toISOString(),
       }).eq("id", editInvitation.id).select().single();
       if (error) throw error;
@@ -563,7 +805,7 @@ const payload = {
         const current = prev[invitationToRemove.event_id] || { pending: 0, confirmed: 0, declined: 0, participants: 0, airTravel: 0 };
         const next = {
           ...current,
-          pending: Math.max(0, current.pending - (invitationToRemove.status === "Pending" ? 1 : 0)),
+                    pending: Math.max(0, current.pending - (invitationToRemove.status !== "Confirmed" && invitationToRemove.status !== "Declined" ? 1 : 0)),
           confirmed: Math.max(0, current.confirmed - (invitationToRemove.status === "Confirmed" ? 1 : 0)),
           declined: Math.max(0, current.declined - (invitationToRemove.status === "Declined" ? 1 : 0)),
           participants: Math.max(0, current.participants - participantCount),
@@ -943,15 +1185,38 @@ const payload = {
               Maximum number of participants allowed.
             </div>
           </div>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "flex-end",
-              gap: 10,
-            }}
-          >
-            <button
-              onClick={() => setShowInvitationForm(false)}
+  
+
+            
+<div style={{ padding: 16, marginBottom: 22, background: "#f6fbfe", border: "1px solid rgba(1,63,153,0.1)", borderRadius: 12 }}>
+  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+    <div>
+      <div style={{ fontSize: 13, fontWeight: 700, color: "#0b1a3b" }}>Company-Sponsored Travel</div>
+      <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>CCLPI will cover the transportation fare.</div>
+    </div>
+    <button
+      type="button"
+      role="switch"
+      aria-checked={!!invitationForm.company_sponsored_travel}
+      onClick={() => setInvitationForm(prev => ({ ...prev, company_sponsored_travel: !prev.company_sponsored_travel }))}
+      style={{ width: 46, height: 26, borderRadius: 20, border: "none", padding: 3, background: invitationForm.company_sponsored_travel ? "#013F99" : "#cbd5e1", cursor: "pointer", flexShrink: 0 }}
+    >
+      <span style={{ display: "block", width: 20, height: 20, borderRadius: "50%", background: "#fff", transform: invitationForm.company_sponsored_travel ? "translateX(20px)" : "translateX(0)", transition: "transform 0.2s" }} />
+    </button>
+  </div>
+  <div style={{ fontSize: 11, marginTop: 12, color: invitationForm.company_sponsored_travel ? "#013F99" : "#64748b" }}>
+    {invitationForm.company_sponsored_travel
+      ? "Enabled: Participants will choose Air Travel or Land Travel during RSVP."
+      : "Disabled: Participants will not be asked for travel information."}
+  </div>
+</div>
+
+
+    
+
+<div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+  <button
+    onClick={() => setShowInvitationForm(false)}
               disabled={savingInvitation}
               style={{
                 padding: "10px 18px",
@@ -1114,15 +1379,30 @@ const payload = {
         <div style={{ fontSize: 17, fontWeight: 700, color: "#0b1a3b" }}>Edit Invitation</div>
         <button type="button" disabled={savingInvitationEdit} onClick={() => setEditInvitation(null)} style={{ border: "none", background: "none", fontSize: 20, color: "#64748b", cursor: "pointer" }}>✕</button>
       </div>
-      <div style={{ fontSize: 11, color: "#64748b", marginBottom: 20 }}>Update the organization name or participant slots.</div>
+      <div style={{ fontSize: 11, color: "#64748b", marginBottom: 20 }}>Update organization, participant slots, or travel sponsorship.</div>
       <div style={{ marginBottom: 16 }}>
         <label style={labelStyle}>Organization / Group Name</label>
         <input type="text" value={editInvitationForm.organization_name} onChange={(e) => setEditInvitationForm((prev) => ({ ...prev, organization_name: e.target.value }))} style={{ ...inputStyle, marginTop: 6 }} />
       </div>
       <div style={{ marginBottom: 8 }}>
         <label style={labelStyle}>Number of Slots</label>
+        
         <input type="number" min={(editInvitation.event_invitation_participants || []).length || 1} value={editInvitationForm.participant_limit} onChange={(e) => setEditInvitationForm((prev) => ({ ...prev, participant_limit: e.target.value }))} style={{ ...inputStyle, marginTop: 6 }} />
         <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 6 }}>Currently registered: {(editInvitation.event_invitation_participants || []).length}. Slots cannot be lower than the registered participant count.</div>
+      </div>
+      <div style={{ padding: 16, marginTop: 16, background: "#f6fbfe", border: "1px solid rgba(1,63,153,0.1)", borderRadius: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#0b1a3b" }}>Company-Sponsored Travel</div>
+            <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>CCLPI will cover the transportation fare.</div>
+          </div>
+          <button type="button" role="switch" aria-label="Company-Sponsored Travel" aria-checked={!!editInvitationForm.company_sponsored_travel} disabled={savingInvitationEdit} onClick={() => setEditInvitationForm(prev => ({ ...prev, company_sponsored_travel: !prev.company_sponsored_travel }))} style={{ width: 46, height: 26, borderRadius: 20, border: "none", padding: 3, background: editInvitationForm.company_sponsored_travel ? "#013F99" : "#cbd5e1", cursor: savingInvitationEdit ? "not-allowed" : "pointer", flexShrink: 0 }}>
+            <span style={{ display: "block", width: 20, height: 20, borderRadius: "50%", background: "#fff", transform: editInvitationForm.company_sponsored_travel ? "translateX(20px)" : "translateX(0)", transition: "transform 0.2s" }} />
+          </button>
+        </div>
+        <div style={{ fontSize: 11, marginTop: 12, color: editInvitationForm.company_sponsored_travel ? "#013F99" : "#64748b" }}>
+          {editInvitationForm.company_sponsored_travel ? "Enabled: Participants will choose Air Travel or Land Travel during RSVP." : "Disabled: Participants will not be asked for travel information."}
+        </div>
       </div>
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 22 }}>
         <button type="button" disabled={savingInvitationEdit} onClick={() => setEditInvitation(null)} style={{ padding: "9px 16px", borderRadius: 9, border: "1px solid rgba(1,63,153,0.15)", background: "#fff", color: "#64748b", fontSize: 11, fontWeight: 600, cursor: savingInvitationEdit ? "not-allowed" : "pointer" }}>Cancel</button>
