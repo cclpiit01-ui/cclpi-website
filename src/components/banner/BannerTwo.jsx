@@ -32,7 +32,7 @@ const BannerTwo = () => {
           <Reveal direction="up">
             <h1 className="text-white font-black leading-tight text-4xl md:text-6xl lg:text-7xl uppercase tracking-tighter mb-8">
               BE A <span className="text-brand-accent italic text-shadow-sm">DEDICATED</span> <br />
-              SALES COUSELOR
+              SALES COUNSELOR
             </h1>
           </Reveal>
 
