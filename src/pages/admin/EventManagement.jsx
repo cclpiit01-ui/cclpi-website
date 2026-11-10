@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabaseEmployees } from "@/lib/supabaseEmployees";
 import QRCode from "qrcode";
+import * as XLSX from "xlsx";
 import Toast from "@/components/Toast";
 export default function EventManagement() {
   const [toast, setToast] = useState(null);
@@ -551,6 +552,52 @@ const filteredInvitations = invitationList.filter((invitation) => {
 
   return matchesStatus && matchesSearch;
 });
+
+const handleExportInvitations = () => {
+  if (filteredInvitations.length === 0) {
+    showToast("No invitations to export.", "info");
+    return;
+  }
+
+  const excelData = filteredInvitations.map((invitation) => {
+    const participants = invitation.event_invitation_participants || [];
+    const airTravelCount = participants.filter(p => p.requires_air_travel).length;
+    const participantNames = participants.map(p => p.full_name).filter(Boolean).join(", ");
+
+    return {
+      "Organization / Invitee": invitation.organization_name || "",
+      "Status": invitation.status === "Confirmed" || invitation.status === "Declined"
+        ? invitation.status : "Pending",
+      "Participant Limit": invitation.participant_limit || 0,
+      "Registered": participants.length,
+      "Air Travel": airTravelCount,
+      "Participants": participantNames,
+      "Response Date": invitation.responded_at
+        ? new Date(invitation.responded_at).toLocaleString("en-PH")
+        : ""
+    };
+  });
+
+  const worksheet = XLSX.utils.json_to_sheet(excelData);
+  worksheet["!cols"] = [
+    { wch: 35 },
+    { wch: 15 },
+    { wch: 18 },
+    { wch: 15 },
+    { wch: 15 },
+    { wch: 45 },
+    { wch: 25 }
+  ];
+
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Invitations");
+
+  const filterName = invitationStatusFilter === "All" ? "All" : invitationStatusFilter;
+  const date = new Date().toISOString().split("T")[0];
+
+  XLSX.writeFile(workbook, `CCLPI_Invitations_${filterName}_${date}.xlsx`);
+  showToast("Excel exported successfully!", "success");
+};
 
 const [invitationListLoading, setInvitationListLoading] = useState(false);
 const [showInvitationForm, setShowInvitationForm] = useState(false);
@@ -1352,6 +1399,29 @@ const payload = {
       <option value="Confirmed">Confirmed</option>
       <option value="Declined">Declined</option>
     </select>
+
+
+    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+  <button
+    onClick={handleExportInvitations}
+    disabled={filteredInvitations.length === 0}
+    style={{
+      padding: "9px 16px",
+      borderRadius: 9,
+      border: "1px solid #16a34a",
+      background: "#16a34a",
+      color: "#fff",
+      fontSize: 11,
+      fontWeight: 600,
+      cursor: filteredInvitations.length ? "pointer" : "not-allowed",
+      opacity: filteredInvitations.length ? 1 : 0.5
+    }}
+  >
+    ↓ Export Excel
+  </button>
+
+
+</div>
 
       
 
