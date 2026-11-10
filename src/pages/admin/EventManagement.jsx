@@ -17,8 +17,11 @@ export default function EventManagement() {
   const [saving, setSaving] = useState(false);
   // ── CUSTOM INVITATIONS ─────────────────────────────
 const openInvitationModal = async (event) => {
+  setInvitationSearch("");
+  setInvitationStatusFilter("All");
   setInvitationEvent(event);
   setInvitationModalOpen(true);
+  setInvitationStatusFilter("All");
   setShowInvitationForm(false);
   setInvitationList([]);
   setInvitationListLoading(true);
@@ -526,6 +529,29 @@ const [invitationForm, setInvitationForm] = useState({
 });
 const [savingInvitation, setSavingInvitation] = useState(false);
 const [invitationList, setInvitationList] = useState([]);
+const [invitationStatusFilter, setInvitationStatusFilter] = useState("All");
+const [invitationSearch, setInvitationSearch] = useState("");
+
+const filteredInvitations = invitationList.filter((invitation) => {
+  const matchesStatus =
+    invitationStatusFilter === "All" ||
+    (invitationStatusFilter === "Pending"
+      ? !["Confirmed", "Declined"].includes(invitation.status)
+      : invitation.status === invitationStatusFilter);
+
+  const search = invitationSearch.trim().toLowerCase();
+  const organization = (invitation.organization_name || "").toLowerCase();
+  const participants = (invitation.event_invitation_participants || [])
+    .map((p) => p.full_name || "")
+    .join(" ")
+    .toLowerCase();
+
+  const matchesSearch =
+    organization.includes(search) || participants.includes(search);
+
+  return matchesStatus && matchesSearch;
+});
+
 const [invitationListLoading, setInvitationListLoading] = useState(false);
 const [showInvitationForm, setShowInvitationForm] = useState(false);
 const [selectedInvitation, setSelectedInvitation] = useState(null);
@@ -1258,30 +1284,97 @@ const payload = {
       ) : (
         <>
           {/* TOP ACTION */}
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "flex-end",
-              marginBottom: 16,
-            }}
-          >
-            <button
-              onClick={openNewInvitationForm}
-              style={{
-                padding: "9px 16px",
-                borderRadius: 9,
-                border: "none",
-                background:
-                  "linear-gradient(90deg, #013F99, #4CB1E9)",
-                color: "#fff",
-                fontSize: 11,
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-            >
-              + Create New Invitation
-            </button>
-          </div>
+
+<div style={{
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  gap: 12,
+  marginBottom: 16,
+  flexWrap: "wrap"
+}}>
+  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+    <div style={{ position: "relative" }}>
+  <input
+    type="text"
+    value={invitationSearch}
+    onChange={(e) => setInvitationSearch(e.target.value)}
+    placeholder="Search invitations..."
+    style={{
+      padding: "9px 32px 9px 14px",
+      borderRadius: 9,
+      border: "1px solid rgba(1,63,153,0.2)",
+      background: "#fff",
+      color: "#0b1a3b",
+      fontSize: 11,
+      outline: "none",
+      width: 230,
+      boxSizing: "border-box"
+    }}
+  />
+  {invitationSearch && (
+    <button
+      type="button"
+      onClick={() => setInvitationSearch("")}
+      style={{
+        position: "absolute",
+        right: 10,
+        top: "50%",
+        transform: "translateY(-50%)",
+        border: "none",
+        background: "transparent",
+        color: "#64748b",
+        cursor: "pointer",
+        fontSize: 14
+      }}
+    >
+      ✕
+    </button>
+  )}
+</div>
+    <select
+      value={invitationStatusFilter}
+      onChange={(e) => setInvitationStatusFilter(e.target.value)}
+      style={{
+        padding: "9px 14px",
+        borderRadius: 9,
+        border: "1px solid rgba(1,63,153,0.2)",
+        background: "#fff",
+        color: "#0b1a3b",
+        fontSize: 11,
+        fontWeight: 600,
+        cursor: "pointer",
+        outline: "none"
+      }}
+    >
+      <option value="All">All Status</option>
+      <option value="Pending">Pending</option>
+      <option value="Confirmed">Confirmed</option>
+      <option value="Declined">Declined</option>
+    </select>
+
+      
+
+    <span style={{ fontSize: 11, color: "#64748b" }}>
+      Showing {filteredInvitations.length} of {invitationList.length}
+    </span>
+  </div>
+  <button
+    onClick={openNewInvitationForm}
+    style={{
+      padding: "9px 16px",
+      borderRadius: 9,
+      border: "none",
+      background: "linear-gradient(90deg, #013F99, #4CB1E9)",
+      color: "#fff",
+      fontSize: 11,
+      fontWeight: 600,
+      cursor: "pointer"
+    }}
+  >
+    + Create New Invitation
+  </button>
+</div>
           {/* INVITATION LIST */}
           {invitationListLoading ? (
             <div
@@ -1325,7 +1418,7 @@ const payload = {
                     </tr>
                   </thead>
                   <tbody>
-                    {invitationList.map((invitation) => {
+                   {filteredInvitations.map((invitation) => {
                       const participants = invitation.event_invitation_participants || [];
                       const airTravelCount = participants.filter((p) => p.requires_air_travel).length;
                       const participantNames = participants.map((p) => p.full_name).filter(Boolean).join(", ");
