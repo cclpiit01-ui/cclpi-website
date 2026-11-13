@@ -3,7 +3,11 @@ import { supabaseEmployees } from "@/lib/supabaseEmployees";
 import QRCode from "qrcode";
 import * as XLSX from "xlsx";
 import Toast from "@/components/Toast";
+import SponsorsMonitoring from "@/components/SponsorsMonitoring";
+import EventCardOptions from "@/components/EventCardOptions";
+import "@/components/EventCardActions.css";
 export default function EventManagement() {
+  const [sponsorEvent, setSponsorEvent] = useState(null);
   const [toast, setToast] = useState(null);
   const showToast = (message, type = "success") => setToast({ message, type, id: Date.now() });
   const [events, setEvents] = useState([]);
@@ -759,11 +763,18 @@ const payload = {
     }
     setSaving(false);
   };
-  const handleDeleteEvent = async (event) => {
-    if (!confirm(`Burahin ang event na "${event.title}"? Mabubura din lahat ng RSVP responses nito.`)) return;
-    const { error } = await supabaseEmployees.from("events").delete().eq("id", event.id);
-    if (error) { showToast(String("Error deleting: " + error.message), "error"); return; }
-    await fetchEvents();
+  const handleDeleteEvent = async (event, confirmation) => {
+    if (confirmation !== event.title) return false;
+    try {
+      const { error } = await supabaseEmployees.from("events").delete().eq("id", event.id).eq("title", confirmation).select("id").single();
+      if (error) throw error;
+      showToast("Event deleted successfully.");
+      await fetchEvents();
+      return true;
+    } catch (error) {
+      showToast("Unable to delete event: " + error.message, "error");
+      return false;
+    }
   };
   const openParticipantDetails = (invitation) => {
     setParticipantInvitation(invitation);
@@ -901,6 +912,7 @@ const payload = {
   return (
     <div>
       {toast && <Toast key={toast.id} message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      {sponsorEvent && <SponsorsMonitoring key={sponsorEvent.id} event={sponsorEvent} onClose={() => setSponsorEvent(null)} showToast={showToast} />}
       <div style={{ marginBottom: 28, display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 700, color: "#0b1a3b", margin: 0, fontFamily: "'Montserrat', sans-serif" }}>Events</h1>
@@ -917,7 +929,7 @@ const payload = {
       ) : events.length === 0 ? (
         <div style={{ padding: 60, textAlign: "center", color: "#94a3b8", fontSize: 13, background: "#fff", borderRadius: 16, border: "1px solid rgba(1,63,153,0.08)" }}>Wala pang event. Click "Create Event" para makagawa ng una.</div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 20 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 320px), 1fr))", gap: 20 }}>
           {events.map(event => {
             const counts = invitationCounts[event.id] || { pending: 0, confirmed: 0, declined: 0, participants: 0, airTravel: 0 };
             return (
@@ -947,10 +959,10 @@ const payload = {
                       </div>
                     ))}
                   </div>
-                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                    <button onClick={() => openInvitationModal(event)} style={{ flex: 1, padding: "8px 10px", borderRadius: 8, border: "1px solid rgba(1,63,153,0.2)", background: "#fff", color: "#013F99", fontSize: 11, fontWeight: 600, cursor: "pointer", }}> Invitations / Monitoring </button>
-                    <button onClick={() => openEditForm(event)} style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid rgba(1,63,153,0.2)", background: "#fff", color: "#013F99", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>Edit</button>
-                    <button onClick={() => handleDeleteEvent(event)} style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid rgba(239,68,68,0.2)", background: "#fff", color: "#dc2626", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>Delete</button>
+                  <div style={{ display: "flex", gap: 6, alignItems: "stretch" }}>
+                    <button className="event-card-action event-card-action--invitations" onClick={() => openInvitationModal(event)} style={{ flex: 1, padding: "8px 10px", borderRadius: 8, border: "1px solid rgba(1,63,153,0.2)", fontSize: 11, fontWeight: 600, cursor: "pointer", }}> Invitations / Monitoring </button>
+                    <button className="event-card-action event-card-action--sponsors" onClick={() => setSponsorEvent(event)} style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid rgba(1,63,153,0.2)", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>Sponsors</button>
+                    <EventCardOptions event={event} onEdit={openEditForm} onDelete={handleDeleteEvent} />
                   </div>
                 </div>
               </div>

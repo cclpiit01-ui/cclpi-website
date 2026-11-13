@@ -1,0 +1,36 @@
+.event-card-action {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.event-card-action--invitations {
+  background-color: #08469C;
+  color: #fff;
+}
+
+.event-card-action--invitations:hover {
+  background-color: #063778;
+}
+
+.event-card-action--sponsors {
+  background-color: #087F78;
+  color: #fff;
+}
+
+.event-card-action--sponsors:hover {
+  background-color: #06665F;
+}
+
+.event-card-action--more {
+  background-color: #fff;
+  border-color: #CBD5E1;
+  color: #334155;
+}
+
+.event-card-action--more:hover {
+  background-color: #F1F5F9;
+}
+
+.event-card-action:focus-visible {
+  outline: 3px solid #08469C;
+  outline-offset: 3px;
+}
